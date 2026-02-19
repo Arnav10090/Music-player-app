@@ -54,6 +54,13 @@ export function SongsTab({ navigation }: any) {
     return a.name.localeCompare(b.name);
   });
 
+  // Opens the options sheet — triggered by tapping artwork or song title/artist
+  const openSheet = useCallback((song: Song) => {
+    setSelectedSong(song);
+    setSheetVisible(true);
+  }, []);
+
+  // Plays the song directly — triggered by the orange play button only
   const handlePlay = useCallback(
     (index: number) => {
       player.playSong(sortedResults, index);
@@ -65,27 +72,45 @@ export function SongsTab({ navigation }: any) {
   const renderItem = useCallback(
     ({ item, index }: { item: Song; index: number }) => {
       const isPlaying = player.currentSong?.id === item.id;
+
       return (
         <View style={styles.row}>
-          <ArtworkImage
-            uri={getBestImageUrl(item.image)}
-            size={52}
-            borderRadius={6}
-          />
-          <View style={styles.info}>
+          {/* Tapping artwork → options sheet */}
+          <TouchableOpacity
+            onPress={() => openSheet(item)}
+            activeOpacity={0.75}
+          >
+            <ArtworkImage
+              uri={getBestImageUrl(item.image)}
+              size={52}
+              borderRadius={6}
+            />
+          </TouchableOpacity>
+
+          {/* Tapping title / artist row → options sheet */}
+          <TouchableOpacity
+            style={styles.info}
+            onPress={() => openSheet(item)}
+            activeOpacity={0.75}
+          >
             <Text
               style={[styles.name, isPlaying && styles.namePlaying]}
               numberOfLines={1}
             >
               {item.name}
             </Text>
-            <Text style={styles.meta}>
-              {item.primaryArtists} | {formatDuration(item.duration)} mins
+            <Text style={styles.meta} numberOfLines={1}>
+              {item.primaryArtists}
+              {' | '}
+              {formatDuration(item.duration)} mins
             </Text>
-          </View>
+          </TouchableOpacity>
+
+          {/* Orange play button → play directly */}
           <TouchableOpacity
             style={styles.playBtn}
             onPress={() => handlePlay(index)}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <Ionicons
               name={isPlaying && player.isPlaying ? "pause" : "play"}
@@ -93,12 +118,12 @@ export function SongsTab({ navigation }: any) {
               color={Colors.textInverse}
             />
           </TouchableOpacity>
+
+          {/* Three-dot → also opens options sheet */}
           <TouchableOpacity
             style={styles.moreBtn}
-            onPress={() => {
-              setSelectedSong(item);
-              setSheetVisible(true);
-            }}
+            onPress={() => openSheet(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons
               name="ellipsis-vertical"
@@ -109,7 +134,7 @@ export function SongsTab({ navigation }: any) {
         </View>
       );
     },
-    [player.currentSong, player.isPlaying, handlePlay],
+    [player.currentSong, player.isPlaying, handlePlay, openSheet],
   );
 
   return (
@@ -184,12 +209,34 @@ export function SongsTab({ navigation }: any) {
         </View>
       </Modal>
 
+      {/* Song options sheet */}
       <SongOptionsSheet
         song={selectedSong}
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}
         onPlayNext={(song) => player.addToQueue(song)}
         onAddToQueue={(song) => player.addToQueue(song)}
+        onGoToArtist={(song) => {
+          setSheetVisible(false);
+          navigation.navigate("ArtistDetail", {
+            artistName: song.primaryArtists,
+            prefetchedSongs: sortedResults.filter(
+              (s) => s.primaryArtists === song.primaryArtists,
+            ),
+            prefetchedImage: getBestImageUrl(song.image),
+          });
+        }}
+        onGoToAlbum={(song) => {
+          setSheetVisible(false);
+          navigation.navigate("AlbumDetail", {
+            albumName: song.album.name,
+            artist: song.primaryArtists,
+            songs: sortedResults.filter(
+              (s) => s.album.id === song.album.id,
+            ),
+            image: song.image,
+          });
+        }}
       />
     </View>
   );
@@ -197,6 +244,8 @@ export function SongsTab({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+
+  // ── Sort bar ──────────────────────────────────────────────────────────────
   sortBar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -211,13 +260,19 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: FontWeight.semibold,
   },
+
+  // ── Song row ──────────────────────────────────────────────────────────────
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
   },
-  info: { flex: 1, marginLeft: Spacing.sm + 2, marginRight: Spacing.sm },
+  info: {
+    flex: 1,
+    marginLeft: Spacing.sm + 2,
+    marginRight: Spacing.sm,
+  },
   name: {
     fontSize: FontSize.sm + 1,
     fontWeight: FontWeight.medium,
@@ -241,7 +296,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     marginLeft: 52 + Spacing.md + Spacing.sm + 2,
   },
-  modalBackdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+
+  // ── Sort modal ────────────────────────────────────────────────────────────
+  modalBackdrop: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+  },
   sortModal: {
     position: "absolute",
     right: Spacing.md,

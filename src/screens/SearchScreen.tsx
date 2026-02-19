@@ -48,7 +48,6 @@ export function SearchScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    // Small delay so the screen transition finishes before focusing
     const t = setTimeout(() => inputRef.current?.focus(), 100);
     AsyncStorage.getItem(RECENT_KEY).then((raw) => {
       if (raw) setRecentSearches(JSON.parse(raw));
@@ -60,7 +59,10 @@ export function SearchScreen({ navigation }: any) {
     async (q: string) => {
       const trimmed = q.trim();
       if (!trimmed) return;
-      const updated = [trimmed, ...recentSearches.filter((r) => r !== trimmed)].slice(0, 10);
+      const updated = [
+        trimmed,
+        ...recentSearches.filter((r) => r !== trimmed),
+      ].slice(0, 10);
       setRecentSearches(updated);
       await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(updated));
     },
@@ -140,7 +142,6 @@ export function SearchScreen({ navigation }: any) {
   const showResults = query.trim().length > 0;
   const notFound = showResults && !isLoading && results.length === 0;
 
-  // ─── Song result row ───────────────────────────────────────────────────────
   const renderSongItem = useCallback(
     ({ item, index }: { item: Song; index: number }) => (
       <TouchableOpacity
@@ -174,7 +175,11 @@ export function SearchScreen({ navigation }: any) {
             setSheetVisible(true);
           }}
         >
-          <Ionicons name="ellipsis-vertical" size={18} color={Colors.textSecondary} />
+          <Ionicons
+            name="ellipsis-vertical"
+            size={18}
+            color={Colors.textSecondary}
+          />
         </TouchableOpacity>
       </TouchableOpacity>
     ),
@@ -184,7 +189,7 @@ export function SearchScreen({ navigation }: any) {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
 
-      {/* ── Search bar row ─────────────────────────────────────────────────── */}
+      {/* ── Search bar ─────────────────────────────────────────────────────── */}
       <View style={styles.searchBarRow}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -194,7 +199,12 @@ export function SearchScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
 
-        <View style={[styles.inputWrapper, isFocused && styles.inputWrapperFocused]}>
+        <View
+          style={[
+            styles.inputWrapper,
+            isFocused && styles.inputWrapperFocused,
+          ]}
+        >
           <Ionicons
             name="search-outline"
             size={18}
@@ -211,38 +221,57 @@ export function SearchScreen({ navigation }: any) {
             returnKeyType="search"
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            onSubmitEditing={() => { if (query.trim()) saveRecent(query); }}
+            onSubmitEditing={() => {
+              if (query.trim()) saveRecent(query);
+            }}
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={clearQuery} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={clearQuery}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
               <Ionicons name="close" size={18} color={Colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* ── Filter chips (only when typing) ───────────────────────────────── */}
+      {/* ── Filter chips ───────────────────────────────────────────────────────
+           Key fix: wrapped in a plain <View style={filterContainer}> with a
+           fixed height. This is the reliable way to pin chips on Android —
+           putting height on the ScrollView itself is ignored in column flex.   */}
       {showResults && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          {FILTER_TABS.map((f) => (
-            <TouchableOpacity
-              key={f}
-              style={[styles.filterChip, activeFilter === f && styles.filterChipActive]}
-              onPress={() => setActiveFilter(f)}
-            >
-              <Text style={[styles.filterText, activeFilter === f && styles.filterTextActive]}>
-                {f}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <View style={styles.filterContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+            keyboardShouldPersistTaps="handled"
+          >
+            {FILTER_TABS.map((f) => (
+              <TouchableOpacity
+                key={f}
+                style={[
+                  styles.filterChip,
+                  activeFilter === f && styles.filterChipActive,
+                ]}
+                onPress={() => setActiveFilter(f)}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    activeFilter === f && styles.filterTextActive,
+                  ]}
+                >
+                  {f}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
-      {/* ── Recent searches (empty query) ─────────────────────────────────── */}
+      {/* ── Recent searches (only when no query typed) ────────────────────── */}
       {!showResults && recentSearches.length > 0 && (
         <View style={styles.recentContainer}>
           <View style={styles.recentHeader}>
@@ -253,7 +282,10 @@ export function SearchScreen({ navigation }: any) {
           </View>
           {recentSearches.map((item) => (
             <View key={item} style={styles.recentRow}>
-              <TouchableOpacity style={{ flex: 1 }} onPress={() => handleRecentPress(item)}>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => handleRecentPress(item)}
+              >
                 <Text style={styles.recentItem}>{item}</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -267,35 +299,40 @@ export function SearchScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* ── Loading ────────────────────────────────────────────────────────── */}
-      {isLoading && (
-        <ActivityIndicator color={Colors.primary} style={{ marginTop: 48 }} />
-      )}
+      {/* ── Content area ───────────────────────────────────────────────────────
+           flex:1 here is the ONLY stretching element in the tree.
+           Search bar = natural height, chips = fixed 56px, this = everything else.
+           Result: chips never move regardless of what's rendered below.         */}
+      <View style={styles.contentArea}>
 
-      {/* ── Not found ─────────────────────────────────────────────────────── */}
-      {notFound && (
-        <View style={styles.notFound}>
-          <Text style={styles.notFoundEmoji}>😞</Text>
-          <Text style={styles.notFoundTitle}>Not Found</Text>
-          <Text style={styles.notFoundSub}>
-            Sorry, the keyword you entered cannot be found, please check again
-            or search with another keyword.
-          </Text>
-        </View>
-      )}
+        {isLoading && (
+          <ActivityIndicator color={Colors.primary} style={styles.loader} />
+        )}
 
-      {/* ── Results ───────────────────────────────────────────────────────── */}
-      {showResults && !isLoading && results.length > 0 && (
-        <FlatList
-          data={results}
-          keyExtractor={(item, i) => `${item.id}-${i}`}
-          renderItem={renderSongItem}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        />
-      )}
+        {notFound && (
+          <View style={styles.notFound}>
+            <Text style={styles.notFoundEmoji}>😞</Text>
+            <Text style={styles.notFoundTitle}>Not Found</Text>
+            <Text style={styles.notFoundSub}>
+              Sorry, the keyword you entered cannot be found, please check
+              again or search with another keyword.
+            </Text>
+          </View>
+        )}
+
+        {showResults && !isLoading && results.length > 0 && (
+          <FlatList
+            data={results}
+            keyExtractor={(item, i) => `${item.id}-${i}`}
+            renderItem={renderSongItem}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            contentContainerStyle={{ paddingBottom: 120 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          />
+        )}
+
+      </View>
 
       <SongOptionsSheet
         song={selectedSong}
@@ -348,15 +385,23 @@ const styles = StyleSheet.create({
   },
 
   // ── Filter chips ──────────────────────────────────────────────────────────
+  // Plain View with fixed height — the only reliable way to constrain a
+  // horizontal ScrollView inside a column flex parent on Android.
+  filterContainer: {
+    height: 56,
+    justifyContent: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
   filterRow: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
+    alignItems: "center",
     flexDirection: "row",
   },
   filterChip: {
-    paddingHorizontal: Spacing.md + 2,
-    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: Spacing.md + 4,
+    paddingVertical: Spacing.sm + 4,
     borderRadius: BorderRadius.full,
     borderWidth: 1.5,
     borderColor: Colors.border,
@@ -377,8 +422,8 @@ const styles = StyleSheet.create({
   },
 
   // ── Recent searches ───────────────────────────────────────────────────────
+  // No flex — natural height only, never competes with contentArea
   recentContainer: {
-    flex: 1,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
   },
@@ -410,15 +455,25 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
 
-  // ── Not found ─────────────────────────────────────────────────────────────
-  notFound: {
+  // ── Content area ──────────────────────────────────────────────────────────
+  // Sole flex:1 consumer — absorbs all remaining vertical space.
+  contentArea: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: 80,
   },
-  notFoundEmoji: { fontSize: 72 },
+  loader: {
+    marginTop: 48,
+  },
+
+  // ── Not found ─────────────────────────────────────────────────────────────
+  // No flex:1 — centered via paddingTop so it can't push chips upward
+  notFound: {
+    alignItems: "center",
+    paddingTop: 60,
+    paddingHorizontal: Spacing.xl,
+  },
+  notFoundEmoji: {
+    fontSize: 72,
+  },
   notFoundTitle: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
@@ -464,7 +519,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: Spacing.sm,
   },
-  moreBtn: { padding: Spacing.xs },
+  moreBtn: {
+    padding: Spacing.xs,
+  },
   separator: {
     height: 1,
     backgroundColor: Colors.border,

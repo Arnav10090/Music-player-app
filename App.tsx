@@ -7,23 +7,25 @@ import { MiniPlayer } from './src/components/MiniPlayer';
 import { setupPlayer } from './src/services/audioService';
 import { useQueueStore } from './src/store/queueStore';
 import { usePlayerStore } from './src/store/playerStore';
+import { useFavoritesStore } from './src/store/favoritesStore';
 
 export default function App() {
   const navRef = useNavigationContainerRef();
   const loadPersistedQueue = useQueueStore((s) => s.loadPersistedQueue);
+  const loadFavorites = useFavoritesStore((s) => s.loadFavorites);
   const currentSong = usePlayerStore((s) => s.currentSong);
   const [currentRoute, setCurrentRoute] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setupPlayer().catch(console.error);
     loadPersistedQueue().catch(console.error);
+    loadFavorites().catch(console.error);
   }, []);
 
   const handleMiniPlayerPress = useCallback(() => {
     navRef.current?.navigate('Player' as never);
   }, [navRef]);
 
-  // Hide mini player when the full Player screen is open
   const showMiniPlayer = currentSong && currentRoute !== 'Player';
 
   return (
