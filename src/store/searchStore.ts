@@ -41,8 +41,15 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
     try {
       const data = await searchSongs(query, 1, 20);
       const songs = data.data.results.map(normalizeSearchSong);
+      // Deduplicate by ID — API sometimes returns same song twice
+      const seen = new Set<string>();
+      const unique = songs.filter((s) => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return true;
+      });
       set({
-        results: songs,
+        results: unique,
         total: data.data.total,
         page: 1,
         isLoading: false,
@@ -60,8 +67,11 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
     try {
       const data = await searchSongs(query, nextPage, 20);
       const newSongs = data.data.results.map(normalizeSearchSong);
+      // Deduplicate against existing results
+      const existingIds = new Set(results.map((s) => s.id));
+      const unique = newSongs.filter((s) => !existingIds.has(s.id));
       set({
-        results: [...results, ...newSongs],
+        results: [...results, ...unique],
         page: nextPage,
         isLoadingMore: false,
       });

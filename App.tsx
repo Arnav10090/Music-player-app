@@ -8,22 +8,6 @@ import { setupPlayer } from './src/services/audioService';
 import { useQueueStore } from './src/store/queueStore';
 import { usePlayerStore } from './src/store/playerStore';
 
-/**
- * App root
- *
- * BACKGROUND PLAYBACK (expo-av):
- * - setupPlayer() calls Audio.setAudioModeAsync({ staysActiveInBackground: true })
- * - iOS: UIBackgroundModes: ["audio"] in app.json keeps the audio session alive
- * - Android: expo-av retains AudioFocus in background
- *
- * MINI PLAYER:
- * - Rendered OUTSIDE the navigator — persists across all screens
- * - Tapping navigates to PlayerScreen modal
- *
- * QUEUE PERSISTENCE:
- * - loadPersistedQueue() reads from AsyncStorage on startup
- */
-
 export default function App() {
   const navRef = useNavigationContainerRef();
   const loadPersistedQueue = useQueueStore((s) => s.loadPersistedQueue);
@@ -41,10 +25,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <View style={styles.container}>
-        <View style={styles.navigatorContainer}>
-          <RootNavigator />
-        </View>
-
+        <RootNavigator />
         {currentSong && (
           <View style={styles.miniPlayerWrapper}>
             <MiniPlayer onPress={handleMiniPlayerPress} />
@@ -58,10 +39,10 @@ export default function App() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   container: { flex: 1 },
-  navigatorContainer: { flex: 1 },
+  // Sits above bottom tabs (60) + safe area
   miniPlayerWrapper: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 60,
     left: 0,
     right: 0,
   },

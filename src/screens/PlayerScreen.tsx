@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -6,27 +6,22 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { usePlayer } from '../hooks/usePlayer';
-import { ArtworkImage } from '../components/ArtworkImage';
-import { SeekBar } from '../components/SeekBar';
-import { PlayerControls } from '../components/PlayerControls';
-import { getBestImageUrl } from '../types/song.types';
-import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { usePlayer } from "../hooks/usePlayer";
+import { ArtworkImage } from "../components/ArtworkImage";
+import { SeekBar } from "../components/SeekBar";
+import { SongOptionsSheet } from "../components/SongOptionsSheet";
+import { getBestImageUrl } from "../types/song.types";
+import {
+  Colors,
+  Spacing,
+  FontSize,
+  FontWeight,
+  BorderRadius,
+} from "../constants/theme";
 
-interface Props {
-  navigation: any;
-}
-
-/**
- * PlayerScreen — full-screen player.
- *
- * SYNC: Uses same usePlayer() hook as MiniPlayer.
- * Both subscribe to the same Zustand store → always perfectly in sync.
- * Changes made here (seek, pause) are instantly reflected in MiniPlayer.
- */
-export function PlayerScreen({ navigation }: Props) {
+export function PlayerScreen({ navigation }: any) {
   const {
     currentSong,
     isPlaying,
@@ -43,29 +38,27 @@ export function PlayerScreen({ navigation }: Props) {
     cycleRepeatMode,
     queue,
     currentIndex,
+    addToQueue,
   } = usePlayer();
-
-  const handleQueuePress = useCallback(() => {
-    navigation.navigate('Queue');
-  }, [navigation]);
-
-  const handleClose = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+  const [sheetVisible, setSheetVisible] = useState(false);
 
   if (!currentSong) {
     return (
       <SafeAreaView style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No song playing</Text>
-        <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-          <Ionicons name="chevron-down" size={28} color={Colors.textPrimary} />
+        <TouchableOpacity
+          style={styles.closeBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
+        <Text style={styles.emptyText}>No song playing</Text>
       </SafeAreaView>
     );
   }
 
-  const imageUri = getBestImageUrl(currentSong.image);
-  const queueLength = queue.length;
+  const repeatIcon = repeatMode === "one" ? "repeat" : "repeat-outline";
+  const repeatColor =
+    repeatMode !== "none" ? Colors.primary : Colors.textSecondary;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -73,30 +66,36 @@ export function PlayerScreen({ navigation }: Props) {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="chevron-down" size={28} color={Colors.textPrimary} />
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <View style={styles.topCenter}>
-          <Text style={styles.topLabel}>Now Playing</Text>
-        </View>
-        <TouchableOpacity onPress={handleQueuePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="list-outline" size={24} color={Colors.textPrimary} />
+        <TouchableOpacity
+          onPress={() => setSheetVisible(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="ellipsis-horizontal-circle-outline"
+            size={26}
+            color={Colors.textPrimary}
+          />
         </TouchableOpacity>
       </View>
 
       {/* Artwork */}
       <View style={styles.artworkContainer}>
         <ArtworkImage
-          uri={imageUri}
+          uri={getBestImageUrl(currentSong.image)}
           size={300}
-          borderRadius={BorderRadius.lg}
-          style={styles.artwork}
+          borderRadius={BorderRadius.xl}
         />
       </View>
 
       {/* Song info */}
       <View style={styles.songInfo}>
-        <View style={styles.songInfoLeft}>
+        <View style={{ flex: 1 }}>
           <Text style={styles.songName} numberOfLines={1}>
             {currentSong.name}
           </Text>
@@ -104,101 +103,146 @@ export function PlayerScreen({ navigation }: Props) {
             {currentSong.primaryArtists}
           </Text>
         </View>
-        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="heart-outline" size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
       </View>
 
       {/* Seek bar */}
-      <View style={styles.seekContainer}>
-        <SeekBar position={position} duration={duration} onSeek={seekTo} />
+      <SeekBar position={position} duration={duration} onSeek={seekTo} />
+
+      {/* Main controls row: |< -10 ▶ +10 >| */}
+      <View style={styles.mainControls}>
+        <TouchableOpacity
+          onPress={skipToPrevious}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="play-skip-back"
+            size={28}
+            color={Colors.textPrimary}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => seekTo(Math.max(0, position - 10))}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="refresh-outline"
+            size={28}
+            color={Colors.textPrimary}
+            style={{ transform: [{ scaleX: -1 }] }}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.playBtn} onPress={togglePlayPause}>
+          <Ionicons
+            name={isPlaying ? "pause" : "play"}
+            size={30}
+            color={Colors.textInverse}
+            style={isPlaying ? undefined : { marginLeft: 3 }}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => seekTo(Math.min(duration, position + 10))}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="refresh-outline"
+            size={28}
+            color={Colors.textPrimary}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={skipToNext}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="play-skip-forward"
+            size={28}
+            color={Colors.textPrimary}
+          />
+        </TouchableOpacity>
       </View>
 
-      {/* Controls */}
-      <PlayerControls
-        isPlaying={isPlaying}
-        isLoading={isLoading}
-        onPlayPause={togglePlayPause}
-        onNext={skipToNext}
-        onPrevious={skipToPrevious}
-        shuffleMode={shuffleMode}
-        repeatMode={repeatMode}
-        onShuffle={toggleShuffle}
-        onRepeat={cycleRepeatMode}
-      />
-
-      {/* Queue indicator */}
-      {queueLength > 1 && (
-        <TouchableOpacity style={styles.queueIndicator} onPress={handleQueuePress}>
-          <Ionicons name="list-outline" size={16} color={Colors.textSecondary} />
-          <Text style={styles.queueText}>
-            {currentIndex + 1} / {queueLength}
-          </Text>
+      {/* Secondary controls: shuffle, timer, cast, more */}
+      <View style={styles.secondaryControls}>
+        <TouchableOpacity
+          onPress={toggleShuffle}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="shuffle-outline"
+            size={24}
+            color={shuffleMode ? Colors.primary : Colors.textSecondary}
+          />
         </TouchableOpacity>
-      )}
+        <TouchableOpacity
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="timer-outline"
+            size={24}
+            color={Colors.textSecondary}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="tv-outline" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={cycleRepeatMode}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name={repeatIcon} size={24} color={repeatColor} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Lyrics button */}
+      <TouchableOpacity
+        style={styles.lyricsBtn}
+        onPress={() => navigation.navigate("Queue")}
+      >
+        <Ionicons name="chevron-up" size={20} color={Colors.textSecondary} />
+        <Text style={styles.lyricsText}>Lyrics</Text>
+      </TouchableOpacity>
+
+      <SongOptionsSheet
+        song={currentSong}
+        visible={sheetVisible}
+        onClose={() => setSheetVisible(false)}
+        onPlayNext={(song) => addToQueue(song)}
+        onAddToQueue={(song) => addToQueue(song)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
   emptyContainer: {
     flex: 1,
     backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  emptyText: {
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: Spacing.lg,
-    left: Spacing.md,
-  },
+  emptyText: { fontSize: FontSize.md, color: Colors.textSecondary },
+  closeBtn: { position: "absolute", top: Spacing.lg, left: Spacing.md },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-  },
-  topCenter: {
-    alignItems: 'center',
-  },
-  topLabel: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textSecondary,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    paddingVertical: Spacing.sm,
   },
   artworkContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
+    alignItems: "center",
+    paddingVertical: Spacing.lg,
     flex: 1,
-    justifyContent: 'center',
-  },
-  artwork: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 12,
+    justifyContent: "center",
   },
   songInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg + Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  songInfoLeft: {
-    flex: 1,
-    marginRight: Spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.sm,
   },
   songName: {
     fontSize: FontSize.xl,
@@ -206,23 +250,37 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: Spacing.xs,
   },
-  artistName: {
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    fontWeight: FontWeight.medium,
+  artistName: { fontSize: FontSize.md, color: Colors.textSecondary },
+  mainControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
   },
-  seekContainer: {
-    marginBottom: Spacing.sm,
+  playBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  queueIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: Spacing.lg,
-    gap: 6,
+  secondaryControls: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.md,
   },
-  queueText: {
+  lyricsBtn: { alignItems: "center", paddingBottom: Spacing.lg },
+  lyricsText: {
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
+    fontWeight: FontWeight.medium,
   },
 });

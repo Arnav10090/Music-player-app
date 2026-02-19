@@ -20,3 +20,19 @@ export async function searchAll(query: string): Promise<SearchAllResponse> {
   });
   return response.data;
 }
+
+// GET /api/search/artists
+export async function searchArtists(query: string, page: number = 1): Promise<any> {
+  const response = await apiClient.get('/api/search/artists', {
+    params: { query, page },
+  });
+  return response.data;
+}
+
+// GET /api/search/albums
+export async function searchAlbums(query: string, page: number = 1): Promise<any> {
+  const response = await apiClient.get('/api/search/albums', {
+    params: { query, page },
+  });
+  return response.data;
+}
