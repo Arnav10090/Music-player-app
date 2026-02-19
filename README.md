@@ -1,6 +1,6 @@
 # Mume — Music Player
 
-A React Native (Expo) music player app built with the JioSaavn API.
+A React Native (Expo) music player app built with the JioSaavn API
 
 ---
 
