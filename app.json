@@ -9,23 +9,45 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.mume.musicplayer",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
       "package": "com.mume.musicplayer",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
       ]
     },
     "plugins": [
-      ["expo-av", { "microphonePermission": false }],
-      ["expo-media-library", {
-        "photosPermission": "Allow Mume to save songs.",
-        "savePhotosPermission": "Allow Mume to save songs.",
-        "isAccessMediaLocationEnabled": true
-      }]
-    ]
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Mume to save songs.",
+          "savePhotosPermission": "Allow Mume to save songs.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "04e9ad4d-7d83-4ae1-9f74-bc164531188a"
+      }
+    },
+    "owner": "arnav_1009"
   }
 }
