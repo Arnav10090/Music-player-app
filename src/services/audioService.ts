@@ -22,6 +22,7 @@ let queue: Song[] = [];
 let currentIndex: number = 0;
 let onStatusUpdate: ((status: AVPlaybackStatus) => void) | null = null;
 let onTrackChange: ((index: number, song: Song) => void) | null = null;
+let onTrackFinish: (() => void) | null = null;
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,10 @@ export function setOnTrackChange(cb: (index: number, song: Song) => void): void 
   onTrackChange = cb;
 }
 
+export function setOnTrackFinish(cb: () => void): void {
+  onTrackFinish = cb;
+}
+
 // ─── Internal load ────────────────────────────────────────────────────────────
 
 async function loadSound(song: Song): Promise<void> {
@@ -62,12 +67,9 @@ async function loadSound(song: Song): Promise<void> {
     (status) => {
       onStatusUpdate?.(status);
 
-      // Auto-advance when track finishes
+      // Auto-advance when track finishes - delegate to usePlayer hook
       if (status.isLoaded && status.didJustFinish) {
-        const next = currentIndex + 1;
-        if (next < queue.length) {
-          skipToIndex(next);
-        }
+        onTrackFinish?.();
       }
     }
   );
@@ -117,6 +119,12 @@ export async function skipToIndex(index: number): Promise<void> {
 
 export async function addToQueue(song: Song): Promise<void> {
   queue = [...queue, song];
+}
+
+export async function playNext(song: Song): Promise<void> {
+  // Insert after current song
+  const insertIndex = currentIndex + 1;
+  queue = [...queue.slice(0, insertIndex), song, ...queue.slice(insertIndex)];
 }
 
 export async function removeFromQueueAtIndex(index: number): Promise<void> {

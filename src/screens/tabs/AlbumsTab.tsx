@@ -10,11 +10,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSearch } from "../../hooks/useSearch";
-import { usePlayer } from "../../hooks/usePlayer";
 import { ArtworkImage } from "../../components/ArtworkImage";
 import { Song, getBestImageUrl } from "../../types/song.types";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import {
-  Colors,
   Spacing,
   FontSize,
   FontWeight,
@@ -34,7 +33,7 @@ const CARD_SIZE = (width - Spacing.md * 3) / 2;
 
 export function AlbumsTab({ navigation }: any) {
   const search = useSearch();
-  const player = usePlayer();
+  const Colors = useThemeColors();
 
   useEffect(() => {
     if (search.results.length === 0) search.search("top hindi songs");
@@ -56,63 +55,14 @@ export function AlbumsTab({ navigation }: any) {
     }, {}),
   );
 
-  const renderItem = ({ item }: { item: AlbumGroup }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => {
-        // Navigate to AlbumDetail instead of playing directly
-        navigation.navigate("AlbumDetail", {
-          albumName: item.name,
-          artist: item.artist,
-          songs: item.songs,
-          image: item.image,
-        });
-      }}
-      activeOpacity={0.8}
-    >
-      <ArtworkImage
-        uri={getBestImageUrl(item.image)}
-        size={CARD_SIZE}
-        borderRadius={BorderRadius.md}
-      />
-      <View style={styles.cardFooter}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.albumName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text style={styles.albumMeta} numberOfLines={1}>
-            {item.artist} | {item.songs.length} songs
-          </Text>
-        </View>
-        <TouchableOpacity
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          onPress={() => {
-            navigation.navigate("AlbumDetail", {
-              albumName: item.name,
-              artist: item.artist,
-              songs: item.songs,
-              image: item.image,
-            });
-          }}
-        >
-          <Ionicons
-            name="ellipsis-vertical"
-            size={16}
-            color={Colors.textSecondary}
-          />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
       <View style={styles.sortBar}>
-        <Text style={styles.countText}>
+        <Text style={[styles.countText, { color: Colors.textSecondary }]}>
           {albumGroups.length > 0 ? `${albumGroups.length} albums` : ""}
         </Text>
         <View style={styles.sortBtn}>
-          <Text style={styles.sortText}>Date Modified</Text>
+          <Text style={[styles.sortText, { color: Colors.primary }]}>Date Modified</Text>
           <Ionicons
             name="swap-vertical-outline"
             size={16}
@@ -127,7 +77,53 @@ export function AlbumsTab({ navigation }: any) {
         data={albumGroups}
         numColumns={2}
         keyExtractor={(item) => item.id}
-        renderItem={renderItem}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => {
+              navigation.navigate("AlbumDetail", {
+                albumName: item.name,
+                artist: item.artist,
+                songs: item.songs,
+                image: item.image,
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <ArtworkImage
+              uri={getBestImageUrl(item.image)}
+              size={CARD_SIZE}
+              borderRadius={BorderRadius.md}
+            />
+            <View style={styles.cardFooter}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.albumName, { color: Colors.textPrimary }]} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={[styles.albumMeta, { color: Colors.textSecondary }]} numberOfLines={1}>
+                  {item.artist} | {item.songs.length} songs
+                </Text>
+              </View>
+              <TouchableOpacity
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => {
+                  navigation.navigate("AlbumDetail", {
+                    albumName: item.name,
+                    artist: item.artist,
+                    songs: item.songs,
+                    image: item.image,
+                  });
+                }}
+              >
+                <Ionicons
+                  name="ellipsis-vertical"
+                  size={16}
+                  color={Colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        )}
         contentContainerStyle={styles.grid}
         columnWrapperStyle={styles.row}
         showsVerticalScrollIndicator={false}
@@ -144,11 +140,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
   },
-  countText: { fontSize: FontSize.sm, color: Colors.textSecondary },
+  countText: { fontSize: FontSize.sm },
   sortBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
   sortText: {
     fontSize: FontSize.sm,
-    color: Colors.primary,
     fontWeight: FontWeight.semibold,
   },
   grid: { paddingHorizontal: Spacing.md, paddingBottom: 120 },
@@ -162,11 +157,9 @@ const styles = StyleSheet.create({
   albumName: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
-    color: Colors.textPrimary,
   },
   albumMeta: {
     fontSize: FontSize.xs + 1,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
 });

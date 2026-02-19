@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, PanResponder } from 'react-native';
-import { Colors, Spacing, FontSize } from '../constants/theme';
+import { View, Text, StyleSheet } from 'react-native';
+import { useThemeColors } from '../hooks/useThemeColors';
+import { Spacing, FontSize } from '../constants/theme';
 import { formatDuration } from '../types/song.types';
 
 interface Props {
@@ -13,26 +14,8 @@ const BAR_HEIGHT = 4;
 const THUMB_SIZE = 14;
 
 export function SeekBar({ position, duration, onSeek }: Props) {
+  const Colors = useThemeColors();
   const progress = duration > 0 ? Math.min(position / duration, 1) : 0;
-
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (evt, gestureState) => {
-      // handled in move
-    },
-    onPanResponderMove: (evt) => {
-      // handled on release for simplicity
-    },
-    onPanResponderRelease: (evt) => {
-      // Use absolute page position
-      const { locationX } = evt.nativeEvent;
-      // We need bar width — use a ref in a real app
-      // For now trigger onSeek with rough estimate
-    },
-  });
-
-  // Simpler implementation using layout-aware approach
   const [barWidth, setBarWidth] = React.useState(300);
 
   const handleBarPress = useCallback(
@@ -41,7 +24,7 @@ export function SeekBar({ position, duration, onSeek }: Props) {
       const ratio = Math.max(0, Math.min(1, x / barWidth));
       onSeek(ratio * duration);
     },
-    [barWidth, duration, onSeek]
+    [barWidth, duration, onSeek],
   );
 
   return (
@@ -52,29 +35,33 @@ export function SeekBar({ position, duration, onSeek }: Props) {
         onStartShouldSetResponder={() => true}
         onResponderRelease={handleBarPress}
       >
-        <View style={styles.track}>
-          <View style={[styles.filled, { width: `${progress * 100}%` }]} />
+        <View style={[styles.track, { backgroundColor: Colors.seekBarEmpty }]}>
+          <View style={[styles.filled, {
+            width: `${progress * 100}%`,
+            backgroundColor: Colors.seekBarFilled,
+          }]} />
         </View>
-        <View
-          style={[
-            styles.thumb,
-            { left: `${progress * 100}%`, marginLeft: -(THUMB_SIZE / 2) },
-          ]}
-        />
+        <View style={[styles.thumb, {
+          left: `${progress * 100}%`,
+          marginLeft: -(THUMB_SIZE / 2),
+          backgroundColor: Colors.seekBarThumb,
+        }]} />
       </View>
 
       <View style={styles.labels}>
-        <Text style={styles.time}>{formatDuration(position)}</Text>
-        <Text style={styles.time}>{formatDuration(duration)}</Text>
+        <Text style={[styles.time, { color: Colors.textSecondary }]}>
+          {formatDuration(position)}
+        </Text>
+        <Text style={[styles.time, { color: Colors.textSecondary }]}>
+          {formatDuration(duration)}
+        </Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: Spacing.md,
-  },
+  container: { paddingHorizontal: Spacing.md },
   barContainer: {
     height: THUMB_SIZE + 8,
     justifyContent: 'center',
@@ -82,13 +69,11 @@ const styles = StyleSheet.create({
   },
   track: {
     height: BAR_HEIGHT,
-    backgroundColor: Colors.seekBarEmpty,
     borderRadius: BAR_HEIGHT,
     overflow: 'hidden',
   },
   filled: {
     height: BAR_HEIGHT,
-    backgroundColor: Colors.seekBarFilled,
     borderRadius: BAR_HEIGHT,
   },
   thumb: {
@@ -96,7 +81,6 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
-    backgroundColor: Colors.seekBarThumb,
     top: '50%',
     marginTop: -(THUMB_SIZE / 2),
   },
@@ -105,8 +89,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: Spacing.xs,
   },
-  time: {
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-  },
+  time: { fontSize: FontSize.xs },
 });

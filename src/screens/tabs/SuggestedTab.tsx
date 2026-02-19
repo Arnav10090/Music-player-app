@@ -1,129 +1,81 @@
-import React, { useCallback } from "react";
+import React, { useEffect, useCallback } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
+  View, Text, TouchableOpacity, ScrollView, FlatList, StyleSheet, Dimensions, ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSearch } from "../../hooks/useSearch";
 import { usePlayer } from "../../hooks/usePlayer";
 import { ArtworkImage } from "../../components/ArtworkImage";
 import { Song, getBestImageUrl } from "../../types/song.types";
-import {
-  Colors,
-  Spacing,
-  FontSize,
-  FontWeight,
-  BorderRadius,
-} from "../../constants/theme";
+import { useThemeColors } from "../../hooks/useThemeColors";
+import { Spacing, FontSize, FontWeight, BorderRadius } from "../../constants/theme";
 
-interface Props {
-  navigation: any;
-  onTabChange: (tab: string) => void;
-}
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const RECENT_CARD_SIZE = (SCREEN_WIDTH - Spacing.md * 2 - Spacing.md * 2) / 3;
 
-// ─── Defined OUTSIDE the parent component so React can properly reconcile ───
-// Defining components inside other components causes them to be treated as
-// a new type on every render, breaking key tracking and causing VirtualizedList
-// warnings when they appear inside lists.
-interface SongCardProps {
-  song: Song;
-  songs: Song[];
-  index: number;
-  onPlay: (songs: Song[], index: number) => void;
-}
-
-function SongCard({ song, songs, index, onPlay }: SongCardProps) {
-  return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => onPlay(songs, index)}
-      activeOpacity={0.8}
-    >
-      <ArtworkImage
-        uri={getBestImageUrl(song.image)}
-        size={100}
-        borderRadius={BorderRadius.md}
-      />
-      <Text style={styles.cardName} numberOfLines={2}>
-        {song.name}
-      </Text>
-      <Text style={styles.cardArtist} numberOfLines={1}>
-        {song.primaryArtists}
-      </Text>
-    </TouchableOpacity>
-  );
-}
+interface Props { navigation: any; onTabChange: (key: string) => void; }
 
 export function SuggestedTab({ navigation, onTabChange }: Props) {
-  const { queue, playSong } = usePlayer();
-  const recent = queue.slice(0, 9);
+  const Colors = useThemeColors();
+  const search = useSearch();
+  const player = usePlayer();
 
-  const handlePlay = useCallback(
-    (songs: Song[], index: number) => {
-      playSong(songs, index);
-      navigation.navigate("Player");
-    },
-    [playSong, navigation],
-  );
+  useEffect(() => {
+    if (search.results.length === 0) search.search("top trending songs");
+  }, []);
 
-  if (recent.length === 0) {
+  const handlePlay = useCallback((index: number) => {
+    player.playSong(search.results, index);
+    navigation.navigate("Player");
+  }, [search.results, player, navigation]);
+
+  const recentlyPlayed = search.results.slice(0, 5);
+  const artists = search.results.slice(5, 8);
+  const mostPlayed = search.results.slice(8, 14);
+
+  const renderMostPlayedItem = ({ item, index }: { item: Song; index: number }) => {
+    const isPlaying = player.currentSong?.id === item.id;
     return (
-      <View style={styles.empty}>
-        <Ionicons
-          name="musical-notes-outline"
-          size={64}
-          color={Colors.textTertiary}
-        />
-        <Text style={styles.emptyTitle}>Nothing here yet</Text>
-        <Text style={styles.emptySubtitle}>
-          Search for songs and start listening
+      <TouchableOpacity style={styles.mostPlayedCard} onPress={() => handlePlay(index + 8)} activeOpacity={0.8}>
+        <ArtworkImage uri={getBestImageUrl(item.image)} size={RECENT_CARD_SIZE + 20} borderRadius={BorderRadius.md} />
+        <Text style={[styles.mostPlayedName, { color: Colors.textPrimary }]} numberOfLines={2}>
+          {item.name}
         </Text>
-        <TouchableOpacity
-          style={styles.browseBtn}
-          onPress={() => onTabChange("songs")}
-        >
-          <Text style={styles.browseBtnText}>Browse Songs</Text>
-        </TouchableOpacity>
+        <Text style={[styles.mostPlayedArtist, { color: Colors.textSecondary }]} numberOfLines={1}>
+          {item.primaryArtists}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  if (search.isLoading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: Colors.background }]}>
+        <ActivityIndicator color={Colors.primary} size="large" />
       </View>
     );
   }
 
-  const recentSongs = recent.slice(0, 6);
-  const artists = Array.from(
-    new Map(recent.map((s) => [s.primaryArtists, s])).values(),
-  ).slice(0, 5);
-  const mostPlayed = [...recent].reverse().slice(0, 6);
-
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: Colors.background }]}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: 120 }}
     >
       {/* Recently Played */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recently Played</Text>
+          <Text style={[styles.sectionTitle, { color: Colors.textPrimary }]}>Recently Played</Text>
           <TouchableOpacity onPress={() => onTabChange("songs")}>
-            <Text style={styles.seeAll}>See All</Text>
+            <Text style={[styles.seeAll, { color: Colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: Spacing.md }}
-          nestedScrollEnabled={true}
-        >
-          {recentSongs.map((song, i) => (
-            <SongCard
-              key={`rp-${song.id}-${i}`}
-              song={song}
-              songs={recentSongs}
-              index={i}
-              onPlay={handlePlay}
-            />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+          {recentlyPlayed.map((song, index) => (
+            <TouchableOpacity key={`${song.id}-${index}`} style={styles.recentCard} onPress={() => handlePlay(index)} activeOpacity={0.8}>
+              <ArtworkImage uri={getBestImageUrl(song.image)} size={RECENT_CARD_SIZE} borderRadius={BorderRadius.md} />
+              <Text style={[styles.recentName, { color: Colors.textPrimary }]} numberOfLines={2}>{song.name}</Text>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
@@ -131,32 +83,25 @@ export function SuggestedTab({ navigation, onTabChange }: Props) {
       {/* Artists */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Artists</Text>
+          <Text style={[styles.sectionTitle, { color: Colors.textPrimary }]}>Artists</Text>
           <TouchableOpacity onPress={() => onTabChange("artists")}>
-            <Text style={styles.seeAll}>See All</Text>
+            <Text style={[styles.seeAll, { color: Colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: Spacing.md }}
-          nestedScrollEnabled={true}
-        >
-          {artists.map((song, i) => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+          {artists.map((song, index) => (
             <TouchableOpacity
-              key={`ar-${song.id}-${i}`}
+              key={`${song.id}-${index}`}
               style={styles.artistCard}
-              onPress={() => handlePlay([song], 0)}
+              onPress={() => navigation.navigate("ArtistDetail", {
+                artistName: song.primaryArtists,
+                prefetchedSongs: search.results.filter((s) => s.primaryArtists === song.primaryArtists),
+                prefetchedImage: getBestImageUrl(song.image),
+              })}
               activeOpacity={0.8}
             >
-              <ArtworkImage
-                uri={getBestImageUrl(song.image)}
-                size={80}
-                borderRadius={40}
-              />
-              <Text style={styles.artistName} numberOfLines={1}>
-                {song.primaryArtists}
-              </Text>
+              <ArtworkImage uri={getBestImageUrl(song.image)} size={80} borderRadius={40} />
+              <Text style={[styles.artistName, { color: Colors.textPrimary }]} numberOfLines={1}>{song.primaryArtists}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -165,100 +110,40 @@ export function SuggestedTab({ navigation, onTabChange }: Props) {
       {/* Most Played */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Most Played</Text>
+          <Text style={[styles.sectionTitle, { color: Colors.textPrimary }]}>Most Played</Text>
           <TouchableOpacity onPress={() => onTabChange("songs")}>
-            <Text style={styles.seeAll}>See All</Text>
+            <Text style={[styles.seeAll, { color: Colors.primary }]}>See All</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView
+        <FlatList
+          data={mostPlayed}
           horizontal
+          keyExtractor={(item, i) => `${item.id}-${i}`}
+          renderItem={renderMostPlayedItem}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: Spacing.md }}
-          nestedScrollEnabled={true}
-        >
-          {mostPlayed.map((song, i) => (
-            <SongCard
-              key={`mp-${song.id}-${i}`}
-              song={song}
-              songs={mostPlayed}
-              index={i}
-              onPlay={handlePlay}
-            />
-          ))}
-        </ScrollView>
+          contentContainerStyle={styles.horizontalScroll}
+        />
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  empty: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.xl,
-    paddingTop: 100,
-  },
-  emptyTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
-    marginTop: Spacing.md,
-  },
-  emptySubtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    marginTop: Spacing.sm,
-    textAlign: "center",
-  },
-  browseBtn: {
-    marginTop: Spacing.lg,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm + 2,
-    borderRadius: BorderRadius.full,
-  },
-  browseBtnText: {
-    color: Colors.textInverse,
-    fontWeight: FontWeight.semibold,
-    fontSize: FontSize.md,
-  },
-  section: { marginTop: Spacing.lg },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
+  section: { marginBottom: Spacing.lg },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
   },
-  sectionTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-  },
-  seeAll: {
-    fontSize: FontSize.sm,
-    color: Colors.primary,
-    fontWeight: FontWeight.semibold,
-  },
-  card: { width: 110, marginRight: Spacing.md },
-  cardName: {
-    fontSize: FontSize.xs + 1,
-    fontWeight: FontWeight.medium,
-    color: Colors.textPrimary,
-    marginTop: Spacing.xs + 2,
-  },
-  cardArtist: {
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  artistCard: { alignItems: "center", width: 90, marginRight: Spacing.md },
-  artistName: {
-    fontSize: FontSize.xs + 1,
-    color: Colors.textPrimary,
-    marginTop: Spacing.xs + 2,
-    textAlign: "center",
-  },
+  sectionTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  seeAll: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  horizontalScroll: { paddingHorizontal: Spacing.md, gap: Spacing.md },
+  recentCard: { width: RECENT_CARD_SIZE, alignItems: "center" },
+  recentName: { fontSize: FontSize.xs + 1, fontWeight: FontWeight.medium, textAlign: "center", marginTop: Spacing.xs, flexWrap: "wrap" },
+  artistCard: { alignItems: "center", width: 80 },
+  artistName: { fontSize: FontSize.xs + 1, fontWeight: FontWeight.medium, textAlign: "center", marginTop: Spacing.xs },
+  mostPlayedCard: { width: RECENT_CARD_SIZE + 20, marginRight: 0 },
+  mostPlayedName: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, marginTop: Spacing.xs },
+  mostPlayedArtist: { fontSize: FontSize.xs },
 });

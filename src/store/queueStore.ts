@@ -15,6 +15,7 @@ interface QueueState {
 interface QueueActions {
   setQueue: (songs: Song[], startIndex: number) => void;
   addToQueue: (song: Song) => void;
+  playNext: (song: Song) => void;
   removeFromQueue: (index: number) => void;
   setCurrentIndex: (index: number) => void;
   reorderQueue: (from: number, to: number) => void;
@@ -51,6 +52,16 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   addToQueue: (song) => {
     const { queue, currentIndex } = get();
     const updated = [...queue, song];
+    const shuffledIndices = buildShuffledIndices(updated.length, currentIndex);
+    set({ queue: updated, shuffledIndices });
+    saveQueue(updated, currentIndex);
+  },
+
+  playNext: (song) => {
+    const { queue, currentIndex } = get();
+    // Insert after current song
+    const insertIndex = currentIndex + 1;
+    const updated = [...queue.slice(0, insertIndex), song, ...queue.slice(insertIndex)];
     const shuffledIndices = buildShuffledIndices(updated.length, currentIndex);
     set({ queue: updated, shuffledIndices });
     saveQueue(updated, currentIndex);

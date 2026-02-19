@@ -30,6 +30,27 @@ export function usePlayer() {
       queueStore.setCurrentIndex(index);
       playerStore.setCurrentSong(song);
     });
+    
+    // Register track finish callback to handle auto-advance with shuffle/repeat
+    AudioService.setOnTrackFinish(() => {
+      const { queue, currentIndex, shuffleMode, shuffledIndices, repeatMode } = queueStore;
+      
+      if (repeatMode === 'one') {
+        AudioService.seekTo(0);
+        AudioService.play();
+        return;
+      }
+
+      if (shuffleMode && shuffledIndices.length > 0) {
+        const pos = shuffledIndices.indexOf(currentIndex);
+        const nextPos = (pos + 1) % shuffledIndices.length;
+        AudioService.skipToIndex(shuffledIndices[nextPos]);
+      } else if (currentIndex < queue.length - 1) {
+        AudioService.skipToNext();
+      } else if (repeatMode === 'all') {
+        AudioService.skipToIndex(0);
+      }
+    });
   }, []);
 
   // ─── Play a list of songs ──────────────────────────────────────────────────
@@ -109,6 +130,12 @@ export function usePlayer() {
     await AudioService.addToQueue(song);
   }, [queueStore]);
 
+  // ─── Play next (insert after current song) ───────────────────────────────
+  const playNext = useCallback(async (song: Song) => {
+    queueStore.playNext(song);
+    await AudioService.playNext(song);
+  }, [queueStore]);
+
   // ─── Jump to specific queue index ─────────────────────────────────────────
   const skipToIndex = useCallback(async (index: number) => {
     queueStore.setCurrentIndex(index);
@@ -135,6 +162,7 @@ export function usePlayer() {
     skipToNext,
     skipToPrevious,
     addToQueue,
+    playNext,
     skipToIndex,
     setPlayerVisible: playerStore.setPlayerVisible,
     toggleShuffle: queueStore.toggleShuffle,

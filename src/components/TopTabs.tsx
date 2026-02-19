@@ -1,17 +1,9 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-} from "react-native";
-import { Colors, Spacing, FontSize, FontWeight } from "../constants/theme";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { useThemeColors } from "../hooks/useThemeColors";
+import { Spacing, FontSize, FontWeight } from "../constants/theme";
 
-interface Tab {
-  key: string;
-  label: string;
-}
+interface Tab { key: string; label: string; }
 interface Props {
   tabs: Tab[];
   activeTab: string;
@@ -19,8 +11,10 @@ interface Props {
 }
 
 export function TopTabs({ tabs, activeTab, onTabChange }: Props) {
+  const Colors = useThemeColors();
+
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, { backgroundColor: Colors.background }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -35,21 +29,27 @@ export function TopTabs({ tabs, activeTab, onTabChange }: Props) {
               onPress={() => onTabChange(tab.key)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.label, isActive && styles.labelActive]}>
+              <Text style={[
+                styles.label,
+                { color: isActive ? Colors.primary : Colors.textSecondary },
+                isActive && styles.labelActive,
+              ]}>
                 {tab.label}
               </Text>
-              {isActive && <View style={styles.indicator} />}
+              {isActive && (
+                <View style={[styles.indicator, { backgroundColor: Colors.primary }]} />
+              )}
             </TouchableOpacity>
           );
         })}
       </ScrollView>
-      <View style={styles.border} />
+      <View style={[styles.border, { backgroundColor: Colors.border }]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { backgroundColor: Colors.background },
+  wrapper: {},
   container: { paddingHorizontal: Spacing.sm },
   tab: {
     paddingHorizontal: Spacing.md,
@@ -60,18 +60,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSize.sm + 1,
     fontWeight: FontWeight.medium,
-    color: Colors.textSecondary,
     paddingBottom: 6,
   },
-  labelActive: { color: Colors.primary, fontWeight: FontWeight.semibold },
+  labelActive: { fontWeight: FontWeight.semibold },
   indicator: {
     position: "absolute",
     bottom: 0,
     left: Spacing.md,
     right: Spacing.md,
     height: 2,
-    backgroundColor: Colors.primary,
     borderRadius: 1,
   },
-  border: { height: 1, backgroundColor: Colors.border },
+  border: { height: 1 },
 });

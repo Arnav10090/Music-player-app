@@ -8,11 +8,14 @@ import { setupPlayer } from './src/services/audioService';
 import { useQueueStore } from './src/store/queueStore';
 import { usePlayerStore } from './src/store/playerStore';
 import { useFavoritesStore } from './src/store/favoritesStore';
+import { useThemeStore } from './src/store/themeStore';
 
 export default function App() {
   const navRef = useNavigationContainerRef();
   const loadPersistedQueue = useQueueStore((s) => s.loadPersistedQueue);
   const loadFavorites = useFavoritesStore((s) => s.loadFavorites);
+  const loadTheme = useThemeStore((s) => s.loadTheme);
+  const isDark = useThemeStore((s) => s.isDark);
   const currentSong = usePlayerStore((s) => s.currentSong);
   const [currentRoute, setCurrentRoute] = useState<string | undefined>(undefined);
 
@@ -20,6 +23,7 @@ export default function App() {
     setupPlayer().catch(console.error);
     loadPersistedQueue().catch(console.error);
     loadFavorites().catch(console.error);
+    loadTheme().catch(console.error);
   }, []);
 
   const handleMiniPlayerPress = useCallback(() => {
@@ -30,7 +34,7 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
         <RootNavigator
           onRouteChange={(routeName: string) => setCurrentRoute(routeName)}
         />

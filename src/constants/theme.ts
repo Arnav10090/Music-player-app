@@ -1,36 +1,69 @@
-export const Colors = {
-  // Primary orange accent from Figma
+export const LightColors = {
   primary: '#FF6B2C',
   primaryLight: '#FF8C5A',
   primaryDark: '#E05520',
 
-  // Backgrounds
   background: '#FFFFFF',
   backgroundSecondary: '#F5F5F5',
-  backgroundDark: '#1A1A1A',
 
-  // Text
   textPrimary: '#1A1A1A',
   textSecondary: '#888888',
   textTertiary: '#BBBBBB',
   textInverse: '#FFFFFF',
 
-  // Borders
   border: '#EEEEEE',
-  borderDark: '#333333',
 
-  // Mini player background
   miniPlayerBg: '#FFFFFF',
   miniPlayerBorder: '#EEEEEE',
 
-  // Seek bar
   seekBarFilled: '#FF6B2C',
   seekBarEmpty: '#EEEEEE',
   seekBarThumb: '#FF6B2C',
 
-  // Status
+  tabBarBg: '#FFFFFF',
+  tabBarBorder: '#EEEEEE',
+
+  cardBg: '#FFFFFF',
+  sheetBg: '#FFFFFF',
+  modalBackdrop: 'rgba(0,0,0,0.45)',
+
   error: '#E53E3E',
 };
+
+export const DarkColors = {
+  primary: '#FF6B2C',
+  primaryLight: '#FF8C5A',
+  primaryDark: '#E05520',
+
+  background: '#1C1C1E',
+  backgroundSecondary: '#2C2C2E',
+
+  textPrimary: '#FFFFFF',
+  textSecondary: '#ABABAB',
+  textTertiary: '#6B6B6B',
+  textInverse: '#FFFFFF',
+
+  border: '#3A3A3C',
+
+  miniPlayerBg: '#2C2C2E',
+  miniPlayerBorder: '#3A3A3C',
+
+  seekBarFilled: '#FF6B2C',
+  seekBarEmpty: '#3A3A3C',
+  seekBarThumb: '#FF6B2C',
+
+  tabBarBg: '#1C1C1E',
+  tabBarBorder: '#3A3A3C',
+
+  cardBg: '#2C2C2E',
+  sheetBg: '#2C2C2E',
+  modalBackdrop: 'rgba(0,0,0,0.7)',
+
+  error: '#FF6B6B',
+};
+
+// Keep for legacy imports that haven't migrated yet
+export const Colors = LightColors;
 
 export const Spacing = {
   xs: 4,

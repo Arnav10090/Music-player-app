@@ -7,7 +7,8 @@ import { SuggestedTab } from './tabs/SuggestedTab';
 import { SongsTab } from './tabs/SongsTab';
 import { ArtistsTab } from './tabs/ArtistsTab';
 import { AlbumsTab } from './tabs/AlbumsTab';
-import { Colors, Spacing, FontSize, FontWeight } from '../constants/theme';
+import { useThemeColors } from '../hooks/useThemeColors';
+import { Spacing, FontSize, FontWeight } from '../constants/theme';
 
 const TABS = [
   { key: 'suggested', label: 'Suggested' },
@@ -17,26 +18,26 @@ const TABS = [
 ];
 
 export function HomeScreen({ navigation }: any) {
+  const Colors = useThemeColors();
   const [activeTab, setActiveTab] = useState('suggested');
-
   const handleTabChange = useCallback((key: string) => setActiveTab(key), []);
 
   const renderTab = () => {
     switch (activeTab) {
       case 'suggested': return <SuggestedTab navigation={navigation} onTabChange={handleTabChange} />;
-      case 'songs': return <SongsTab navigation={navigation} />;
-      case 'artists': return <ArtistsTab navigation={navigation} />;
-      case 'albums': return <AlbumsTab navigation={navigation} />;
-      default: return null;
+      case 'songs':     return <SongsTab navigation={navigation} />;
+      case 'artists':   return <ArtistsTab navigation={navigation} />;
+      case 'albums':    return <AlbumsTab navigation={navigation} />;
+      default:          return null;
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="musical-notes" size={26} color={Colors.primary} />
-          <Text style={styles.appName}>Mume</Text>
+          <Text style={[styles.appName, { color: Colors.textPrimary }]}>Mume</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('Search')}>
           <Ionicons name="search-outline" size={24} color={Colors.textPrimary} />
@@ -53,7 +54,7 @@ export function HomeScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -66,7 +67,6 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
     marginLeft: Spacing.xs + 2,
   },
 });
