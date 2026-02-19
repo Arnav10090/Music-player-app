@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Mume",
+    "slug": "music-player",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mume.musicplayer",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
+    },
+    "android": {
+      "package": "com.mume.musicplayer",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      ["expo-av", { "microphonePermission": false }],
+      ["expo-media-library", {
+        "photosPermission": "Allow Mume to save songs.",
+        "savePhotosPermission": "Allow Mume to save songs.",
+        "isAccessMediaLocationEnabled": true
+      }]
+    ]
+  }
+}
