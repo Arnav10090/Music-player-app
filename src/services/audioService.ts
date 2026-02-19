@@ -1,19 +1,3 @@
-/**
- * audioService.ts
- *
- * Uses expo-av (Audio.Sound) — works with npx expo start / Expo Go.
- *
- * BACKGROUND PLAYBACK with expo-av:
- * - Call Audio.setAudioModeAsync with staysActiveInBackground: true
- * - iOS: UIBackgroundModes ["audio"] in app.json ensures the audio session
- *   is kept alive when the app is backgrounded
- * - Android: expo-av uses AudioFocus; music continues in background
- *   (no lock screen controls without RNTP, but playback continues)
- *
- * This service manages a single Sound instance. The currently loaded track
- * is stored in `currentSound`. On track switch we unload the old sound first.
- */
-
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Song, getStreamUrl } from '../types/song.types';
 
@@ -24,18 +8,14 @@ let onStatusUpdate: ((status: AVPlaybackStatus) => void) | null = null;
 let onTrackChange: ((index: number, song: Song) => void) | null = null;
 let onTrackFinish: (() => void) | null = null;
 
-// ─── Setup ────────────────────────────────────────────────────────────────────
-
 export async function setupPlayer(): Promise<void> {
   await Audio.setAudioModeAsync({
-    staysActiveInBackground: true,       // keeps playing when app is backgrounded
-    playsInSilentModeIOS: true,          // plays even when iPhone silent switch is on
+    staysActiveInBackground: true,
+    playsInSilentModeIOS: true,
     shouldDuckAndroid: true,
     playThroughEarpieceAndroid: false,
   });
 }
-
-// ─── Event registration ───────────────────────────────────────────────────────
 
 export function setOnStatusUpdate(cb: (status: AVPlaybackStatus) => void): void {
   onStatusUpdate = cb;
@@ -49,10 +29,7 @@ export function setOnTrackFinish(cb: () => void): void {
   onTrackFinish = cb;
 }
 
-// ─── Internal load ────────────────────────────────────────────────────────────
-
 async function loadSound(song: Song): Promise<void> {
-  // Unload previous
   if (currentSound) {
     try { await currentSound.unloadAsync(); } catch {}
     currentSound = null;
@@ -66,8 +43,6 @@ async function loadSound(song: Song): Promise<void> {
     { shouldPlay: true, progressUpdateIntervalMillis: 500 },
     (status) => {
       onStatusUpdate?.(status);
-
-      // Auto-advance when track finishes - delegate to usePlayer hook
       if (status.isLoaded && status.didJustFinish) {
         onTrackFinish?.();
       }
@@ -76,8 +51,6 @@ async function loadSound(song: Song): Promise<void> {
 
   currentSound = sound;
 }
-
-// ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function loadAndPlay(songs: Song[], startIndex: number = 0): Promise<void> {
   queue = songs;
@@ -121,8 +94,20 @@ export async function addToQueue(song: Song): Promise<void> {
   queue = [...queue, song];
 }
 
+/**
+ * Insert a song at a specific position in the queue.
+ * Songs after the insert point are shifted right.
+ * If insertIndex <= currentIndex, currentIndex is adjusted.
+ */
+export async function insertSongAtIndex(song: Song, insertIndex: number): Promise<void> {
+  const safeIndex = Math.max(0, Math.min(insertIndex, queue.length));
+  queue = [...queue.slice(0, safeIndex), song, ...queue.slice(safeIndex)];
+  if (safeIndex <= currentIndex) {
+    currentIndex += 1;
+  }
+}
+
 export async function playNext(song: Song): Promise<void> {
-  // Insert after current song
   const insertIndex = currentIndex + 1;
   queue = [...queue.slice(0, insertIndex), song, ...queue.slice(insertIndex)];
 }

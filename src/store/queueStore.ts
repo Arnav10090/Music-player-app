@@ -16,6 +16,8 @@ interface QueueActions {
   setQueue: (songs: Song[], startIndex: number) => void;
   addToQueue: (song: Song) => void;
   playNext: (song: Song) => void;
+  /** Insert a song at an exact position in the queue array. */
+  insertSongAtPosition: (song: Song, position: number) => void;
   removeFromQueue: (index: number) => void;
   setCurrentIndex: (index: number) => void;
   reorderQueue: (from: number, to: number) => void;
@@ -46,7 +48,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   setQueue: (songs, startIndex) => {
     const shuffledIndices = buildShuffledIndices(songs.length, startIndex);
     set({ queue: songs, currentIndex: startIndex, shuffledIndices });
-    saveQueue(songs, startIndex); // fire-and-forget async
+    saveQueue(songs, startIndex);
   },
 
   addToQueue: (song) => {
@@ -59,12 +61,22 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
   playNext: (song) => {
     const { queue, currentIndex } = get();
-    // Insert after current song
     const insertIndex = currentIndex + 1;
     const updated = [...queue.slice(0, insertIndex), song, ...queue.slice(insertIndex)];
     const shuffledIndices = buildShuffledIndices(updated.length, currentIndex);
     set({ queue: updated, shuffledIndices });
     saveQueue(updated, currentIndex);
+  },
+
+  insertSongAtPosition: (song, position) => {
+    const { queue, currentIndex } = get();
+    const safePos = Math.max(0, Math.min(position, queue.length));
+    const updated = [...queue.slice(0, safePos), song, ...queue.slice(safePos)];
+    // If we inserted before or at current, shift currentIndex
+    const newCurrentIndex = safePos <= currentIndex ? currentIndex + 1 : currentIndex;
+    const shuffledIndices = buildShuffledIndices(updated.length, newCurrentIndex);
+    set({ queue: updated, currentIndex: newCurrentIndex, shuffledIndices });
+    saveQueue(updated, newCurrentIndex);
   },
 
   removeFromQueue: (index) => {

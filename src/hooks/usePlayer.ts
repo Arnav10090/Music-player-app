@@ -5,36 +5,20 @@ import { Song } from '../types/song.types';
 import * as AudioService from '../services/audioService';
 import { handlePlaybackStatus } from '../services/playbackService';
 
-/**
- * usePlayer — master hook for all playback interactions.
- *
- * HOW SYNC WORKS:
- * 1. audioService.setOnStatusUpdate() registers handlePlaybackStatus as a callback.
- *    expo-av calls it every 500ms with position, isPlaying, isBuffering, duration.
- * 2. handlePlaybackStatus writes to playerStore (Zustand).
- * 3. Both MiniPlayer and PlayerScreen call usePlayer() → both subscribe to the
- *    same playerStore → always perfectly in sync.
- *
- * The callback is registered once on app mount (in App.tsx via setupPlayer).
- * Individual screen instances of usePlayer just read the store.
- */
 export function usePlayer() {
   const playerStore = usePlayerStore();
   const queueStore = useQueueStore();
 
-  // Register callbacks once — subsequent calls are no-ops since
-  // audioService stores only one callback reference
   useEffect(() => {
     AudioService.setOnStatusUpdate(handlePlaybackStatus);
     AudioService.setOnTrackChange((index, song) => {
       queueStore.setCurrentIndex(index);
       playerStore.setCurrentSong(song);
     });
-    
-    // Register track finish callback to handle auto-advance with shuffle/repeat
+
     AudioService.setOnTrackFinish(() => {
       const { queue, currentIndex, shuffleMode, shuffledIndices, repeatMode } = queueStore;
-      
+
       if (repeatMode === 'one') {
         AudioService.seekTo(0);
         AudioService.play();
@@ -53,7 +37,6 @@ export function usePlayer() {
     });
   }, []);
 
-  // ─── Play a list of songs ──────────────────────────────────────────────────
   const playSong = useCallback(
     async (songs: Song[], startIndex: number = 0) => {
       try {
@@ -70,7 +53,6 @@ export function usePlayer() {
     []
   );
 
-  // ─── Toggle play / pause ───────────────────────────────────────────────────
   const togglePlayPause = useCallback(async () => {
     if (playerStore.isPlaying) {
       await AudioService.pause();
@@ -79,12 +61,10 @@ export function usePlayer() {
     }
   }, [playerStore.isPlaying]);
 
-  // ─── Seek ──────────────────────────────────────────────────────────────────
   const seekTo = useCallback(async (seconds: number) => {
     await AudioService.seekTo(seconds);
   }, []);
 
-  // ─── Skip next (respects shuffle + repeat) ────────────────────────────────
   const skipToNext = useCallback(async () => {
     const { queue, currentIndex, shuffleMode, shuffledIndices, repeatMode } = queueStore;
 
@@ -105,11 +85,9 @@ export function usePlayer() {
     }
   }, [queueStore]);
 
-  // ─── Skip previous ────────────────────────────────────────────────────────
   const skipToPrevious = useCallback(async () => {
     const { shuffleMode, shuffledIndices, currentIndex } = queueStore;
 
-    // If more than 3 seconds in → restart current track
     if (playerStore.position > 3) {
       await AudioService.seekTo(0);
       return;
@@ -124,26 +102,32 @@ export function usePlayer() {
     }
   }, [queueStore, playerStore.position]);
 
-  // ─── Add to queue ─────────────────────────────────────────────────────────
   const addToQueue = useCallback(async (song: Song) => {
     queueStore.addToQueue(song);
     await AudioService.addToQueue(song);
   }, [queueStore]);
 
-  // ─── Play next (insert after current song) ───────────────────────────────
   const playNext = useCallback(async (song: Song) => {
     queueStore.playNext(song);
     await AudioService.playNext(song);
   }, [queueStore]);
 
-  // ─── Jump to specific queue index ─────────────────────────────────────────
+  /**
+   * Insert a song at an exact index in the queue.
+   * Used by SongsTab to place "Add to Playing Queue" songs immediately
+   * after the current song (and after any previously queued songs).
+   */
+  const insertIntoQueue = useCallback(async (song: Song, atIndex: number) => {
+    queueStore.insertSongAtPosition(song, atIndex);
+    await AudioService.insertSongAtIndex(song, atIndex);
+  }, [queueStore]);
+
   const skipToIndex = useCallback(async (index: number) => {
     queueStore.setCurrentIndex(index);
     await AudioService.skipToIndex(index);
   }, [queueStore]);
 
   return {
-    // ── state ──
     currentSong: playerStore.currentSong,
     isPlaying: playerStore.isPlaying,
     isLoading: playerStore.isLoading,
@@ -155,7 +139,6 @@ export function usePlayer() {
     currentIndex: queueStore.currentIndex,
     shuffleMode: queueStore.shuffleMode,
     repeatMode: queueStore.repeatMode,
-    // ── actions ──
     playSong,
     togglePlayPause,
     seekTo,
@@ -163,6 +146,7 @@ export function usePlayer() {
     skipToPrevious,
     addToQueue,
     playNext,
+    insertIntoQueue,
     skipToIndex,
     setPlayerVisible: playerStore.setPlayerVisible,
     toggleShuffle: queueStore.toggleShuffle,
