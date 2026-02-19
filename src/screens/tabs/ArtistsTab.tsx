@@ -13,6 +13,14 @@ import { Spacing, FontSize, FontWeight, BorderRadius } from "../../constants/the
 
 interface ArtistGroup { name: string; songs: Song[]; image: any[]; }
 
+const SHEET_OPTIONS = [
+  { key: "play",           icon: "play-circle-outline",       label: "Play" },
+  { key: "play_next",      icon: "play-skip-forward-outline",  label: "Play Next" },
+  { key: "add_to_queue",   icon: "list-outline",               label: "Add to Playing Queue" },
+  { key: "add_playlist",   icon: "add-circle-outline",         label: "Add to Playlist" },
+  { key: "share",          icon: "share-social-outline",       label: "Share" },
+] as const;
+
 export function ArtistsTab({ navigation }: any) {
   const Colors = useThemeColors();
   const search = useSearch();
@@ -42,6 +50,22 @@ export function ArtistsTab({ navigation }: any) {
       prefetchedImage: getBestImageUrl(selectedArtist.image),
     });
   }, [selectedArtist, navigation]);
+
+  const handleOptionPress = useCallback((key: string) => {
+    if (!selectedArtist) return;
+    switch (key) {
+      case "play":
+        handleViewArtist();
+        break;
+      case "play_next":
+      case "add_to_queue":
+        selectedArtist.songs.forEach((s) => player.addToQueue(s));
+        setSheetVisible(false);
+        break;
+      default:
+        setSheetVisible(false);
+    }
+  }, [selectedArtist, handleViewArtist, player]);
 
   const renderItem = useCallback(({ item }: { item: ArtistGroup }) => (
     <TouchableOpacity
@@ -79,7 +103,7 @@ export function ArtistsTab({ navigation }: any) {
 
       <FlatList
         data={artistGroups}
-        keyExtractor={(item) => item.name}
+        keyExtractor={(item, index) => `artist-${item.name}-${index}`}
         renderItem={renderItem}
         ItemSeparatorComponent={() => (
           <View style={{ height: 1, backgroundColor: Colors.border, marginLeft: 52 + Spacing.md + Spacing.sm }} />
@@ -89,8 +113,17 @@ export function ArtistsTab({ navigation }: any) {
       />
 
       {/* Artist Options Sheet */}
-      <Modal visible={sheetVisible} transparent animationType="slide" onRequestClose={() => setSheetVisible(false)} statusBarTranslucent>
-        <Pressable style={[styles.backdrop, { backgroundColor: Colors.modalBackdrop }]} onPress={() => setSheetVisible(false)} />
+      <Modal
+        visible={sheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheetVisible(false)}
+        statusBarTranslucent
+      >
+        <Pressable
+          style={[styles.backdrop, { backgroundColor: Colors.modalBackdrop }]}
+          onPress={() => setSheetVisible(false)}
+        />
         {selectedArtist && (
           <View style={[styles.sheet, { backgroundColor: Colors.sheetBg }]}>
             <View style={[styles.dragHandle, { backgroundColor: Colors.border }]} />
@@ -104,15 +137,18 @@ export function ArtistsTab({ navigation }: any) {
               </View>
             </View>
             <View style={[styles.divider, { backgroundColor: Colors.border }]} />
-            {[
-              { icon: 'play-circle-outline', label: 'Play',                  action: handleViewArtist },
-              { icon: 'play-skip-forward-outline', label: 'Play Next',       action: () => { selectedArtist.songs.forEach((s) => player.addToQueue(s)); setSheetVisible(false); } },
-              { icon: 'list-outline', label: 'Add to Playing Queue',         action: () => { selectedArtist.songs.forEach((s) => player.addToQueue(s)); setSheetVisible(false); } },
-              { icon: 'add-circle-outline', label: 'Add to Playlist',        action: () => setSheetVisible(false) },
-              { icon: 'share-social-outline', label: 'Share',                action: () => setSheetVisible(false) },
-            ].map((opt) => (
-              <TouchableOpacity key={opt.label} style={styles.sheetOption} onPress={opt.action}>
-                <Ionicons name={opt.icon as any} size={22} color={Colors.textPrimary} style={{ marginRight: Spacing.md, width: 28 }} />
+            {SHEET_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.key}
+                style={styles.sheetOption}
+                onPress={() => handleOptionPress(opt.key)}
+              >
+                <Ionicons
+                  name={opt.icon as any}
+                  size={22}
+                  color={Colors.textPrimary}
+                  style={{ marginRight: Spacing.md, width: 28 }}
+                />
                 <Text style={[styles.sheetOptionText, { color: Colors.textPrimary }]}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
