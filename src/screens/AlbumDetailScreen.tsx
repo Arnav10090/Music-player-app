@@ -1,22 +1,17 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getArtistById, getArtistSongs } from '../api/artistsApi';
-import { Artist } from '../types/artist.types';
 import {
   Song,
-  normalizeSongDetail,
   getBestImageUrl,
-  decodeHtml,
   formatDuration,
 } from '../types/song.types';
 import { ArtworkImage } from '../components/ArtworkImage';
@@ -25,55 +20,27 @@ import { usePlayer } from '../hooks/usePlayer';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const ARTWORK_SIZE = SCREEN_WIDTH * 0.48;
+const ARTWORK_SIZE = SCREEN_WIDTH * 0.52;
 
 interface Props {
   navigation: any;
   route: {
     params: {
-      artistId?: string;
-      artistName: string;
-      prefetchedSongs?: Song[];
-      prefetchedImage?: string;
+      albumName: string;
+      artist: string;
+      songs: Song[];
+      image: any[];
     };
   };
 }
 
-export function ArtistDetailScreen({ navigation, route }: Props) {
-  const { artistId, artistName, prefetchedSongs, prefetchedImage } = route.params;
-
-  const [artist, setArtist] = useState<Artist | null>(null);
-  const [songs, setSongs] = useState<Song[]>(prefetchedSongs ?? []);
-  const [isLoading, setIsLoading] = useState(!prefetchedSongs);
-  const [error, setError] = useState<string | null>(null);
+export function AlbumDetailScreen({ navigation, route }: Props) {
+  const { albumName, artist, songs, image } = route.params;
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
 
   const player = usePlayer();
   const insets = useSafeAreaInsets();
-
-  // Only fetch from API if we weren't given songs directly
-  useEffect(() => {
-    if (prefetchedSongs && prefetchedSongs.length > 0) return;
-    if (!artistId) return;
-
-    async function load() {
-      try {
-        setIsLoading(true);
-        const [artistData, songsData] = await Promise.all([
-          getArtistById(artistId!),
-          getArtistSongs(artistId!, 1),
-        ]);
-        setArtist(artistData);
-        setSongs(songsData.songs.map(normalizeSongDetail));
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    load();
-  }, [artistId]);
 
   const handlePlay = useCallback(
     (startIndex = 0) => {
@@ -93,59 +60,31 @@ export function ArtistDetailScreen({ navigation, route }: Props) {
     navigation.navigate('Player');
   }, [songs, player, navigation]);
 
-  const handleMorePress = useCallback((song: Song) => {
-    setSelectedSong(song);
-    setSheetVisible(true);
-  }, []);
-
-  // Determine display values — prefer API data, fall back to params/prefetched
-  const artistImageUri =
-    artist?.image ? getBestImageUrl(artist.image) :
-    prefetchedImage ?? (songs[0] ? getBestImageUrl(songs[0].image) : '');
-
-  const displayName = artist ? decodeHtml(artist.name) : artistName;
-
   const totalDuration = songs.reduce((acc, s) => acc + (s.duration ?? 0), 0);
   const totalMins = formatDuration(totalDuration);
+  const year = (songs[0] as any)?.year ?? '';
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.centered}>
-        <Ionicons name="cloud-offline-outline" size={48} color={Colors.textTertiary} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtnPill}>
-          <Text style={styles.backBtnText}>Go Back</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
-  // ─── Header rendered above the song list ─────────────────────────────────
   const ListHeader = () => (
     <View style={styles.header}>
       {/* Artwork */}
       <ArtworkImage
-        uri={artistImageUri}
+        uri={getBestImageUrl(image)}
         size={ARTWORK_SIZE}
         borderRadius={BorderRadius.lg}
         style={styles.artwork}
       />
 
       {/* Name + meta */}
-      <Text style={styles.artistName}>{displayName}</Text>
-      <Text style={styles.artistMeta}>
-        1 Album{'  |  '}{songs.length} Songs{'  |  '}{totalMins} mins
+      <Text style={styles.albumName}>{albumName}</Text>
+      <Text style={styles.albumMeta}>
+        {artist}
+        {year ? `  |  ${year}` : ''}
+      </Text>
+      <Text style={styles.albumMeta}>
+        {songs.length} Songs{'  |  '}{totalMins} mins
       </Text>
 
-      {/* Shuffle + Play buttons */}
+      {/* Shuffle + Play */}
       <View style={styles.actionRow}>
         <TouchableOpacity style={styles.shuffleBtn} onPress={handleShuffle} activeOpacity={0.85}>
           <Ionicons name="shuffle-outline" size={18} color={Colors.textInverse} />
@@ -157,7 +96,7 @@ export function ArtistDetailScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Songs section header */}
+      {/* Songs header */}
       <View style={styles.songsSectionHeader}>
         <Text style={styles.songsSectionTitle}>Songs</Text>
         <TouchableOpacity>
@@ -220,7 +159,7 @@ export function ArtistDetailScreen({ navigation, route }: Props) {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.moreBtn}
-              onPress={() => handleMorePress(item)}
+              onPress={() => { setSelectedSong(item); setSheetVisible(true); }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="ellipsis-vertical" size={18} color={Colors.textSecondary} />
@@ -246,12 +185,6 @@ export function ArtistDetailScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  centered: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -261,8 +194,6 @@ const styles = StyleSheet.create({
   },
   topBarRight: { flexDirection: 'row', alignItems: 'center' },
   iconBtn: { padding: Spacing.xs },
-
-  // Header (artwork + meta + buttons)
   header: {
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
@@ -276,14 +207,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  artistName: {
+  albumName: {
     fontSize: FontSize.xxl,
     fontWeight: FontWeight.bold,
     color: Colors.textPrimary,
     marginTop: Spacing.md,
     textAlign: 'center',
   },
-  artistMeta: {
+  albumMeta: {
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
@@ -328,8 +259,6 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     fontSize: FontSize.md,
   },
-
-  // Songs section header
   songsSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -351,8 +280,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: FontWeight.semibold,
   },
-
-  // Song rows
   songRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,22 +316,5 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.border,
     marginLeft: Spacing.md + 48 + Spacing.sm + 2,
-  },
-  errorText: {
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    marginTop: Spacing.md,
-    textAlign: 'center',
-  },
-  backBtnPill: {
-    marginTop: Spacing.lg,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-  },
-  backBtnText: {
-    color: Colors.textInverse,
-    fontWeight: FontWeight.semibold,
   },
 });

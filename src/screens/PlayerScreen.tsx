@@ -4,9 +4,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
+  Dimensions,
   StatusBar,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlayer } from "../hooks/usePlayer";
 import { ArtworkImage } from "../components/ArtworkImage";
@@ -20,6 +21,9 @@ import {
   FontWeight,
   BorderRadius,
 } from "../constants/theme";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const ARTWORK_SIZE = SCREEN_WIDTH - Spacing.xl * 2;
 
 export function PlayerScreen({ navigation }: any) {
   const {
@@ -36,17 +40,17 @@ export function PlayerScreen({ navigation }: any) {
     skipToPrevious,
     toggleShuffle,
     cycleRepeatMode,
-    queue,
-    currentIndex,
     addToQueue,
   } = usePlayer();
+
   const [sheetVisible, setSheetVisible] = useState(false);
+  const insets = useSafeAreaInsets();
 
   if (!currentSong) {
     return (
       <SafeAreaView style={styles.emptyContainer}>
         <TouchableOpacity
-          style={styles.closeBtn}
+          style={styles.backBtn}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
@@ -61,20 +65,23 @@ export function PlayerScreen({ navigation }: any) {
     repeatMode !== "none" ? Colors.primary : Colors.textSecondary;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
       {/* Top bar */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { paddingTop: insets.top + Spacing.xs }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={styles.iconBtn}
         >
           <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => setSheetVisible(true)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={styles.iconBtn}
         >
           <Ionicons
             name="ellipsis-horizontal-circle-outline"
@@ -88,38 +95,35 @@ export function PlayerScreen({ navigation }: any) {
       <View style={styles.artworkContainer}>
         <ArtworkImage
           uri={getBestImageUrl(currentSong.image)}
-          size={300}
-          borderRadius={BorderRadius.xl}
+          size={ARTWORK_SIZE}
+          borderRadius={BorderRadius.lg}
         />
       </View>
 
       {/* Song info */}
       <View style={styles.songInfo}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.songName} numberOfLines={1}>
-            {currentSong.name}
-          </Text>
-          <Text style={styles.artistName} numberOfLines={1}>
-            {currentSong.primaryArtists}
-          </Text>
-        </View>
+        <Text style={styles.songName} numberOfLines={1}>
+          {currentSong.name}
+        </Text>
+        <Text style={styles.artistName} numberOfLines={1}>
+          {currentSong.primaryArtists}
+        </Text>
       </View>
 
       {/* Seek bar */}
-      <SeekBar position={position} duration={duration} onSeek={seekTo} />
+      <View style={styles.seekBarWrapper}>
+        <SeekBar position={position} duration={duration} onSeek={seekTo} />
+      </View>
 
-      {/* Main controls row: |< -10 ▶ +10 >| */}
+      {/* Main controls */}
       <View style={styles.mainControls}>
         <TouchableOpacity
           onPress={skipToPrevious}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons
-            name="play-skip-back"
-            size={28}
-            color={Colors.textPrimary}
-          />
+          <Ionicons name="play-skip-back" size={30} color={Colors.textPrimary} />
         </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => seekTo(Math.max(0, position - 10))}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -131,41 +135,37 @@ export function PlayerScreen({ navigation }: any) {
             style={{ transform: [{ scaleX: -1 }] }}
           />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.playBtn} onPress={togglePlayPause}>
+
+        <TouchableOpacity style={styles.playBtn} onPress={togglePlayPause} activeOpacity={0.85}>
           <Ionicons
             name={isPlaying ? "pause" : "play"}
-            size={30}
+            size={32}
             color={Colors.textInverse}
             style={isPlaying ? undefined : { marginLeft: 3 }}
           />
         </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => seekTo(Math.min(duration, position + 10))}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons
-            name="refresh-outline"
-            size={28}
-            color={Colors.textPrimary}
-          />
+          <Ionicons name="refresh-outline" size={28} color={Colors.textPrimary} />
         </TouchableOpacity>
+
         <TouchableOpacity
           onPress={skipToNext}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons
-            name="play-skip-forward"
-            size={28}
-            color={Colors.textPrimary}
-          />
+          <Ionicons name="play-skip-forward" size={30} color={Colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
-      {/* Secondary controls: shuffle, timer, cast, more */}
+      {/* Secondary controls */}
       <View style={styles.secondaryControls}>
         <TouchableOpacity
           onPress={toggleShuffle}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.secondaryBtn}
         >
           <Ionicons
             name="shuffle-outline"
@@ -173,23 +173,25 @@ export function PlayerScreen({ navigation }: any) {
             color={shuffleMode ? Colors.primary : Colors.textSecondary}
           />
         </TouchableOpacity>
+
         <TouchableOpacity
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.secondaryBtn}
         >
-          <Ionicons
-            name="timer-outline"
-            size={24}
-            color={Colors.textSecondary}
-          />
+          <Ionicons name="timer-outline" size={24} color={Colors.textSecondary} />
         </TouchableOpacity>
+
         <TouchableOpacity
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.secondaryBtn}
         >
           <Ionicons name="tv-outline" size={24} color={Colors.textSecondary} />
         </TouchableOpacity>
+
         <TouchableOpacity
           onPress={cycleRepeatMode}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.secondaryBtn}
         >
           <Ionicons name={repeatIcon} size={24} color={repeatColor} />
         </TouchableOpacity>
@@ -200,7 +202,7 @@ export function PlayerScreen({ navigation }: any) {
         style={styles.lyricsBtn}
         onPress={() => navigation.navigate("Queue")}
       >
-        <Ionicons name="chevron-up" size={20} color={Colors.textSecondary} />
+        <Ionicons name="chevron-up" size={18} color={Colors.textSecondary} />
         <Text style={styles.lyricsText}>Lyrics</Text>
       </TouchableOpacity>
 
@@ -211,38 +213,49 @@ export function PlayerScreen({ navigation }: any) {
         onPlayNext={(song) => addToQueue(song)}
         onAddToQueue={(song) => addToQueue(song)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   emptyContainer: {
     flex: 1,
     backgroundColor: Colors.background,
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyText: { fontSize: FontSize.md, color: Colors.textSecondary },
-  closeBtn: { position: "absolute", top: Spacing.lg, left: Spacing.md },
+  emptyText: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+  },
+  backBtn: {
+    position: "absolute",
+    top: Spacing.lg,
+    left: Spacing.md,
+  },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingBottom: Spacing.sm,
+  },
+  iconBtn: {
+    padding: Spacing.xs,
   },
   artworkContainer: {
     alignItems: "center",
-    paddingVertical: Spacing.lg,
-    flex: 1,
-    justifyContent: "center",
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
   },
   songInfo: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: Spacing.xl,
-    marginBottom: Spacing.sm,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
   songName: {
     fontSize: FontSize.xl,
@@ -250,7 +263,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: Spacing.xs,
   },
-  artistName: { fontSize: FontSize.md, color: Colors.textSecondary },
+  artistName: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+  },
+  seekBarWrapper: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
   mainControls: {
     flexDirection: "row",
     alignItems: "center",
@@ -259,9 +279,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   playBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -274,13 +294,21 @@ const styles = StyleSheet.create({
   secondaryControls: {
     flexDirection: "row",
     justifyContent: "space-around",
+    alignItems: "center",
     paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
-  lyricsBtn: { alignItems: "center", paddingBottom: Spacing.lg },
+  secondaryBtn: {
+    padding: Spacing.sm,
+  },
+  lyricsBtn: {
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+  },
   lyricsText: {
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     fontWeight: FontWeight.medium,
+    marginTop: 2,
   },
 });

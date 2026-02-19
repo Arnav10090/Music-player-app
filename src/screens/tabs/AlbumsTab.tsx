@@ -22,9 +22,9 @@ import {
 } from "../../constants/theme";
 
 interface AlbumGroup {
+  id: string;
   name: string;
   artist: string;
-  year?: string;
   songs: Song[];
   image: any[];
 }
@@ -42,9 +42,10 @@ export function AlbumsTab({ navigation }: any) {
 
   const albumGroups: AlbumGroup[] = Object.values(
     search.results.reduce((acc: Record<string, AlbumGroup>, song) => {
-      const key = song.album.name;
+      const key = song.album.id || `${song.album.name}__${song.primaryArtists}`;
       if (!acc[key])
         acc[key] = {
+          id: key,
           name: song.album.name,
           artist: song.primaryArtists,
           songs: [],
@@ -59,8 +60,13 @@ export function AlbumsTab({ navigation }: any) {
     <TouchableOpacity
       style={styles.card}
       onPress={() => {
-        player.playSong(item.songs, 0);
-        navigation.navigate("Player");
+        // Navigate to AlbumDetail instead of playing directly
+        navigation.navigate("AlbumDetail", {
+          albumName: item.name,
+          artist: item.artist,
+          songs: item.songs,
+          image: item.image,
+        });
       }}
       activeOpacity={0.8}
     >
@@ -78,7 +84,17 @@ export function AlbumsTab({ navigation }: any) {
             {item.artist} | {item.songs.length} songs
           </Text>
         </View>
-        <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => {
+            navigation.navigate("AlbumDetail", {
+              albumName: item.name,
+              artist: item.artist,
+              songs: item.songs,
+              image: item.image,
+            });
+          }}
+        >
           <Ionicons
             name="ellipsis-vertical"
             size={16}
@@ -110,7 +126,7 @@ export function AlbumsTab({ navigation }: any) {
       <FlatList
         data={albumGroups}
         numColumns={2}
-        keyExtractor={(item) => item.name}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.grid}
         columnWrapperStyle={styles.row}

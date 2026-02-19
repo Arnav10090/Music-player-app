@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlayer } from "../hooks/usePlayer";
@@ -17,7 +18,6 @@ import { SongOptionsSheet } from "../components/SongOptionsSheet";
 import {
   Song,
   getBestImageUrl,
-  formatDuration,
   normalizeSearchSong,
 } from "../types/song.types";
 import { searchSongs } from "../api/searchApi";
@@ -40,30 +40,34 @@ export function SearchScreen({ navigation }: any) {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
   const inputRef = useRef<TextInput>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const player = usePlayer();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    inputRef.current?.focus();
+    // Small delay so the screen transition finishes before focusing
+    const t = setTimeout(() => inputRef.current?.focus(), 100);
     AsyncStorage.getItem(RECENT_KEY).then((raw) => {
       if (raw) setRecentSearches(JSON.parse(raw));
     });
+    return () => clearTimeout(t);
   }, []);
 
   const saveRecent = useCallback(
     async (q: string) => {
-      const updated = [q, ...recentSearches.filter((r) => r !== q)].slice(
-        0,
-        10,
-      );
+      const trimmed = q.trim();
+      if (!trimmed) return;
+      const updated = [trimmed, ...recentSearches.filter((r) => r !== trimmed)].slice(0, 10);
       setRecentSearches(updated);
       await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(updated));
     },
     [recentSearches],
   );
 
-  const clearRecent = useCallback(async () => {
+  const clearAllRecent = useCallback(async () => {
     setRecentSearches([]);
     await AsyncStorage.removeItem(RECENT_KEY);
   }, []);
@@ -127,12 +131,23 @@ export function SearchScreen({ navigation }: any) {
     [results, query, player, saveRecent, navigation],
   );
 
+  const clearQuery = useCallback(() => {
+    setQuery("");
+    setResults([]);
+    inputRef.current?.focus();
+  }, []);
+
   const showResults = query.trim().length > 0;
   const notFound = showResults && !isLoading && results.length === 0;
 
+  // ─── Song result row ───────────────────────────────────────────────────────
   const renderSongItem = useCallback(
     ({ item, index }: { item: Song; index: number }) => (
-      <View style={styles.songRow}>
+      <TouchableOpacity
+        style={styles.songRow}
+        onPress={() => handleSongPress(item, index)}
+        activeOpacity={0.7}
+      >
         <ArtworkImage
           uri={getBestImageUrl(item.image)}
           size={52}
@@ -147,10 +162,10 @@ export function SearchScreen({ navigation }: any) {
           </Text>
         </View>
         <TouchableOpacity
-          style={styles.playBtn}
+          style={styles.playCircleBtn}
           onPress={() => handleSongPress(item, index)}
         >
-          <Ionicons name="play" size={18} color={Colors.textInverse} />
+          <Ionicons name="play" size={16} color={Colors.textInverse} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.moreBtn}
@@ -159,29 +174,31 @@ export function SearchScreen({ navigation }: any) {
             setSheetVisible(true);
           }}
         >
-          <Ionicons
-            name="ellipsis-vertical"
-            size={18}
-            color={Colors.textSecondary}
-          />
+          <Ionicons name="ellipsis-vertical" size={18} color={Colors.textSecondary} />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     ),
     [handleSongPress],
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Search bar */}
-      <View style={styles.searchBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+
+      {/* ── Search bar row ─────────────────────────────────────────────────── */}
+      <View style={styles.searchBarRow}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.backBtn}
+        >
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <View style={styles.inputWrapper}>
+
+        <View style={[styles.inputWrapper, isFocused && styles.inputWrapperFocused]}>
           <Ionicons
             name="search-outline"
             size={18}
-            color={Colors.primary}
+            color={isFocused ? Colors.primary : Colors.textSecondary}
             style={{ marginRight: Spacing.sm }}
           />
           <TextInput
@@ -192,90 +209,70 @@ export function SearchScreen({ navigation }: any) {
             placeholder="Search songs, artists..."
             placeholderTextColor={Colors.textTertiary}
             returnKeyType="search"
-            onSubmitEditing={() => {
-              if (query.trim()) saveRecent(query);
-            }}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            onSubmitEditing={() => { if (query.trim()) saveRecent(query); }}
           />
           {query.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setQuery("");
-                setResults([]);
-              }}
-            >
+            <TouchableOpacity onPress={clearQuery} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={18} color={Colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Filter tabs (shown when typing) */}
+      {/* ── Filter chips (only when typing) ───────────────────────────────── */}
       {showResults && (
-        <View style={styles.filterRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
           {FILTER_TABS.map((f) => (
             <TouchableOpacity
               key={f}
-              style={[
-                styles.filterChip,
-                activeFilter === f && styles.filterChipActive,
-              ]}
+              style={[styles.filterChip, activeFilter === f && styles.filterChipActive]}
               onPress={() => setActiveFilter(f)}
             >
-              <Text
-                style={[
-                  styles.filterText,
-                  activeFilter === f && styles.filterTextActive,
-                ]}
-              >
+              <Text style={[styles.filterText, activeFilter === f && styles.filterTextActive]}>
                 {f}
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       )}
 
-      {/* Recent searches (no query) */}
-      {!showResults && (
+      {/* ── Recent searches (empty query) ─────────────────────────────────── */}
+      {!showResults && recentSearches.length > 0 && (
         <View style={styles.recentContainer}>
-          {recentSearches.length > 0 && (
-            <>
-              <View style={styles.recentHeader}>
-                <Text style={styles.recentTitle}>Recent Searches</Text>
-                <TouchableOpacity onPress={clearRecent}>
-                  <Text style={styles.clearAll}>Clear All</Text>
-                </TouchableOpacity>
-              </View>
-              {recentSearches.map((item) => (
-                <View key={item} style={styles.recentRow}>
-                  <TouchableOpacity
-                    style={{ flex: 1 }}
-                    onPress={() => handleRecentPress(item)}
-                  >
-                    <Text style={styles.recentItem}>{item}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => removeRecent(item)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons
-                      name="close"
-                      size={18}
-                      color={Colors.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </>
-          )}
+          <View style={styles.recentHeader}>
+            <Text style={styles.recentTitle}>Recent Searches</Text>
+            <TouchableOpacity onPress={clearAllRecent}>
+              <Text style={styles.clearAll}>Clear All</Text>
+            </TouchableOpacity>
+          </View>
+          {recentSearches.map((item) => (
+            <View key={item} style={styles.recentRow}>
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => handleRecentPress(item)}>
+                <Text style={styles.recentItem}>{item}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => removeRecent(item)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={18} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
       )}
 
-      {/* Loading */}
+      {/* ── Loading ────────────────────────────────────────────────────────── */}
       {isLoading && (
-        <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={Colors.primary} style={{ marginTop: 48 }} />
       )}
 
-      {/* Not found */}
+      {/* ── Not found ─────────────────────────────────────────────────────── */}
       {notFound && (
         <View style={styles.notFound}>
           <Text style={styles.notFoundEmoji}>😞</Text>
@@ -287,15 +284,16 @@ export function SearchScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* Results */}
+      {/* ── Results ───────────────────────────────────────────────────────── */}
       {showResults && !isLoading && results.length > 0 && (
         <FlatList
           data={results}
           keyExtractor={(item, i) => `${item.id}-${i}`}
           renderItem={renderSongItem}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         />
       )}
 
@@ -306,18 +304,26 @@ export function SearchScreen({ navigation }: any) {
         onPlayNext={(song) => player.addToQueue(song)}
         onAddToQueue={(song) => player.addToQueue(song)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  searchBar: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+
+  // ── Search bar ────────────────────────────────────────────────────────────
+  searchBarRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
     gap: Spacing.sm,
+  },
+  backBtn: {
+    padding: Spacing.xs,
   },
   inputWrapper: {
     flex: 1,
@@ -326,7 +332,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundSecondary,
     borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  inputWrapperFocused: {
+    borderColor: Colors.primary,
+    backgroundColor: "#FFF5F0",
   },
   input: {
     flex: 1,
@@ -334,18 +346,21 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     padding: 0,
   },
+
+  // ── Filter chips ──────────────────────────────────────────────────────────
   filterRow: {
-    flexDirection: "row",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
+    flexDirection: "row",
   },
   filterChip: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.md + 2,
     paddingVertical: Spacing.xs + 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1.5,
     borderColor: Colors.border,
+    backgroundColor: Colors.background,
   },
   filterChipActive: {
     backgroundColor: Colors.primary,
@@ -360,6 +375,8 @@ const styles = StyleSheet.create({
     color: Colors.textInverse,
     fontWeight: FontWeight.semibold,
   },
+
+  // ── Recent searches ───────────────────────────────────────────────────────
   recentContainer: {
     flex: 1,
     paddingHorizontal: Spacing.md,
@@ -384,11 +401,16 @@ const styles = StyleSheet.create({
   recentRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: Spacing.sm + 2,
+    paddingVertical: Spacing.sm + 4,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  recentItem: { fontSize: FontSize.md, color: Colors.textPrimary },
+  recentItem: {
+    fontSize: FontSize.md,
+    color: Colors.textPrimary,
+  },
+
+  // ── Not found ─────────────────────────────────────────────────────────────
   notFound: {
     flex: 1,
     alignItems: "center",
@@ -396,7 +418,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingBottom: 80,
   },
-  notFoundEmoji: { fontSize: 64 },
+  notFoundEmoji: { fontSize: 72 },
   notFoundTitle: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
@@ -408,23 +430,32 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: Spacing.sm,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 21,
   },
+
+  // ── Song rows ─────────────────────────────────────────────────────────────
   songRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
   },
-  songInfo: { flex: 1, marginLeft: Spacing.sm + 2, marginRight: Spacing.sm },
+  songInfo: {
+    flex: 1,
+    marginLeft: Spacing.sm + 2,
+    marginRight: Spacing.sm,
+  },
   songName: {
     fontSize: FontSize.sm + 1,
     fontWeight: FontWeight.medium,
     color: Colors.textPrimary,
     marginBottom: 3,
   },
-  songMeta: { fontSize: FontSize.xs + 1, color: Colors.textSecondary },
-  playBtn: {
+  songMeta: {
+    fontSize: FontSize.xs + 1,
+    color: Colors.textSecondary,
+  },
+  playCircleBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
@@ -437,6 +468,6 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: Colors.border,
-    marginLeft: 52 + Spacing.md + Spacing.sm + 2,
+    marginLeft: Spacing.md + 52 + Spacing.sm + 2,
   },
 });

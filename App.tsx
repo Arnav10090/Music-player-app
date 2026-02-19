@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useNavigationContainerRef } from '@react-navigation/native';
@@ -12,6 +12,7 @@ export default function App() {
   const navRef = useNavigationContainerRef();
   const loadPersistedQueue = useQueueStore((s) => s.loadPersistedQueue);
   const currentSong = usePlayerStore((s) => s.currentSong);
+  const [currentRoute, setCurrentRoute] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setupPlayer().catch(console.error);
@@ -22,11 +23,16 @@ export default function App() {
     navRef.current?.navigate('Player' as never);
   }, [navRef]);
 
+  // Hide mini player when the full Player screen is open
+  const showMiniPlayer = currentSong && currentRoute !== 'Player';
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <View style={styles.container}>
-        <RootNavigator />
-        {currentSong && (
+        <RootNavigator
+          onRouteChange={(routeName: string) => setCurrentRoute(routeName)}
+        />
+        {showMiniPlayer && (
           <View style={styles.miniPlayerWrapper}>
             <MiniPlayer onPress={handleMiniPlayerPress} />
           </View>
@@ -39,7 +45,6 @@ export default function App() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   container: { flex: 1 },
-  // Sits above bottom tabs (60) + safe area
   miniPlayerWrapper: {
     position: 'absolute',
     bottom: 60,

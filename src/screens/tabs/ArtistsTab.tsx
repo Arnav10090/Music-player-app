@@ -19,7 +19,6 @@ import {
   Spacing,
   FontSize,
   FontWeight,
-  BorderRadius,
 } from "../../constants/theme";
 
 interface ArtistGroup {
@@ -32,7 +31,7 @@ interface ArtistOptionSheetProps {
   artist: ArtistGroup | null;
   visible: boolean;
   onClose: () => void;
-  onPlay: () => void;
+  onViewArtist: () => void;
   onPlayNext: () => void;
   onAddToQueue: () => void;
 }
@@ -41,7 +40,7 @@ function ArtistOptionSheet({
   artist,
   visible,
   onClose,
-  onPlay,
+  onViewArtist,
   onPlayNext,
   onAddToQueue,
 }: ArtistOptionSheetProps) {
@@ -75,28 +74,28 @@ function ArtistOptionSheet({
           {
             icon: "play-circle-outline",
             label: "Play",
-            action: () => {
-              onPlay();
-              onClose();
-            },
+            action: () => { onViewArtist(); onClose(); },
           },
           {
             icon: "play-skip-forward-outline",
             label: "Play Next",
-            action: () => {
-              onPlayNext();
-              onClose();
-            },
+            action: () => { onPlayNext(); onClose(); },
           },
           {
             icon: "list-outline",
             label: "Add to Playing Queue",
-            action: () => {
-              onAddToQueue();
-              onClose();
-            },
+            action: () => { onAddToQueue(); onClose(); },
           },
-          { icon: "share-social-outline", label: "Share", action: onClose },
+          {
+            icon: "add-circle-outline",
+            label: "Add to Playlist",
+            action: onClose,
+          },
+          {
+            icon: "share-social-outline",
+            label: "Share",
+            action: onClose,
+          },
         ].map((opt) => (
           <TouchableOpacity
             key={opt.label}
@@ -120,9 +119,7 @@ function ArtistOptionSheet({
 export function ArtistsTab({ navigation }: any) {
   const search = useSearch();
   const player = usePlayer();
-  const [selectedArtist, setSelectedArtist] = useState<ArtistGroup | null>(
-    null,
-  );
+  const [selectedArtist, setSelectedArtist] = useState<ArtistGroup | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
 
   useEffect(() => {
@@ -138,14 +135,26 @@ export function ArtistsTab({ navigation }: any) {
     }, {}),
   );
 
+  const handleRowPress = useCallback((item: ArtistGroup) => {
+    setSelectedArtist(item);
+    setSheetVisible(true);
+  }, []);
+
+  // Navigate to ArtistDetailScreen with songs pre-loaded
+  const handleViewArtist = useCallback(() => {
+    if (!selectedArtist) return;
+    navigation.navigate("ArtistDetail", {
+      artistName: selectedArtist.name,
+      prefetchedSongs: selectedArtist.songs,
+      prefetchedImage: getBestImageUrl(selectedArtist.image),
+    });
+  }, [selectedArtist, navigation]);
+
   const renderItem = useCallback(
     ({ item }: { item: ArtistGroup }) => (
       <TouchableOpacity
         style={styles.row}
-        onPress={() => {
-          player.playSong(item.songs, 0);
-          navigation.navigate("Player");
-        }}
+        onPress={() => handleRowPress(item)}
         activeOpacity={0.7}
       >
         <ArtworkImage
@@ -160,10 +169,7 @@ export function ArtistsTab({ navigation }: any) {
           <Text style={styles.meta}>1 Album | {item.songs.length} Songs</Text>
         </View>
         <TouchableOpacity
-          onPress={() => {
-            setSelectedArtist(item);
-            setSheetVisible(true);
-          }}
+          onPress={() => handleRowPress(item)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons
@@ -174,7 +180,7 @@ export function ArtistsTab({ navigation }: any) {
         </TouchableOpacity>
       </TouchableOpacity>
     ),
-    [player, navigation],
+    [handleRowPress],
   );
 
   return (
@@ -185,11 +191,7 @@ export function ArtistsTab({ navigation }: any) {
         </Text>
         <View style={styles.sortBtn}>
           <Text style={styles.sortText}>Date Added</Text>
-          <Ionicons
-            name="swap-vertical-outline"
-            size={16}
-            color={Colors.primary}
-          />
+          <Ionicons name="swap-vertical-outline" size={16} color={Colors.primary} />
         </View>
       </View>
 
@@ -202,13 +204,7 @@ export function ArtistsTab({ navigation }: any) {
         keyExtractor={(item) => item.name}
         renderItem={renderItem}
         ItemSeparatorComponent={() => (
-          <View
-            style={{
-              height: 1,
-              backgroundColor: Colors.border,
-              marginLeft: 52 + Spacing.md + Spacing.sm,
-            }}
-          />
+          <View style={{ height: 1, backgroundColor: Colors.border, marginLeft: 52 + Spacing.md + Spacing.sm }} />
         )}
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
@@ -218,15 +214,9 @@ export function ArtistsTab({ navigation }: any) {
         artist={selectedArtist}
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}
-        onPlay={() =>
-          selectedArtist && player.playSong(selectedArtist.songs, 0)
-        }
-        onPlayNext={() =>
-          selectedArtist?.songs.forEach((s) => player.addToQueue(s))
-        }
-        onAddToQueue={() =>
-          selectedArtist?.songs.forEach((s) => player.addToQueue(s))
-        }
+        onViewArtist={handleViewArtist}
+        onPlayNext={() => selectedArtist?.songs.forEach((s) => player.addToQueue(s))}
+        onAddToQueue={() => selectedArtist?.songs.forEach((s) => player.addToQueue(s))}
       />
     </View>
   );
@@ -242,11 +232,7 @@ const styles = StyleSheet.create({
   },
   countText: { fontSize: FontSize.sm, color: Colors.textSecondary },
   sortBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
-  sortText: {
-    fontSize: FontSize.sm,
-    color: Colors.primary,
-    fontWeight: FontWeight.semibold,
-  },
+  sortText: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: FontWeight.semibold },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -254,12 +240,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
   },
   info: { flex: 1, marginLeft: Spacing.sm + 2, marginRight: Spacing.sm },
-  name: {
-    fontSize: FontSize.sm + 1,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
-    marginBottom: 3,
-  },
+  name: { fontSize: FontSize.sm + 1, fontWeight: FontWeight.semibold, color: Colors.textPrimary, marginBottom: 3 },
   meta: { fontSize: FontSize.xs + 1, color: Colors.textSecondary },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
   sheet: {
@@ -269,13 +250,10 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: 36, height: 4, borderRadius: 2,
     backgroundColor: Colors.border,
     alignSelf: "center",
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm, marginBottom: Spacing.sm,
   },
   sheetHeader: {
     flexDirection: "row",
@@ -283,21 +261,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  sheetName: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
-  },
-  sheetMeta: {
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: Spacing.sm,
-  },
+  sheetName: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.textPrimary },
+  sheetMeta: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2 },
+  divider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.sm },
   sheetOption: {
     flexDirection: "row",
     alignItems: "center",

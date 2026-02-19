@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -23,14 +23,50 @@ interface Props {
   onTabChange: (tab: string) => void;
 }
 
+// ─── Defined OUTSIDE the parent component so React can properly reconcile ───
+// Defining components inside other components causes them to be treated as
+// a new type on every render, breaking key tracking and causing VirtualizedList
+// warnings when they appear inside lists.
+interface SongCardProps {
+  song: Song;
+  songs: Song[];
+  index: number;
+  onPlay: (songs: Song[], index: number) => void;
+}
+
+function SongCard({ song, songs, index, onPlay }: SongCardProps) {
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => onPlay(songs, index)}
+      activeOpacity={0.8}
+    >
+      <ArtworkImage
+        uri={getBestImageUrl(song.image)}
+        size={100}
+        borderRadius={BorderRadius.md}
+      />
+      <Text style={styles.cardName} numberOfLines={2}>
+        {song.name}
+      </Text>
+      <Text style={styles.cardArtist} numberOfLines={1}>
+        {song.primaryArtists}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 export function SuggestedTab({ navigation, onTabChange }: Props) {
-  const { queue, currentSong, playSong } = usePlayer();
+  const { queue, playSong } = usePlayer();
   const recent = queue.slice(0, 9);
 
-  const handlePlay = (songs: Song[], index: number) => {
-    playSong(songs, index);
-    navigation.navigate("Player");
-  };
+  const handlePlay = useCallback(
+    (songs: Song[], index: number) => {
+      playSong(songs, index);
+      navigation.navigate("Player");
+    },
+    [playSong, navigation],
+  );
 
   if (recent.length === 0) {
     return (
@@ -60,34 +96,6 @@ export function SuggestedTab({ navigation, onTabChange }: Props) {
   ).slice(0, 5);
   const mostPlayed = [...recent].reverse().slice(0, 6);
 
-  const SongCard = ({
-    song,
-    songs,
-    index,
-  }: {
-    song: Song;
-    songs: Song[];
-    index: number;
-  }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => handlePlay(songs, index)}
-      activeOpacity={0.8}
-    >
-      <ArtworkImage
-        uri={getBestImageUrl(song.image)}
-        size={100}
-        borderRadius={BorderRadius.md}
-      />
-      <Text style={styles.cardName} numberOfLines={2}>
-        {song.name}
-      </Text>
-      <Text style={styles.cardArtist} numberOfLines={1}>
-        {song.primaryArtists}
-      </Text>
-    </TouchableOpacity>
-  );
-
   return (
     <ScrollView
       style={styles.container}
@@ -106,13 +114,15 @@ export function SuggestedTab({ navigation, onTabChange }: Props) {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingLeft: Spacing.md }}
+          nestedScrollEnabled={true}
         >
           {recentSongs.map((song, i) => (
             <SongCard
-              key={`rp-${i}`}
+              key={`rp-${song.id}-${i}`}
               song={song}
               songs={recentSongs}
               index={i}
+              onPlay={handlePlay}
             />
           ))}
         </ScrollView>
@@ -130,10 +140,11 @@ export function SuggestedTab({ navigation, onTabChange }: Props) {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingLeft: Spacing.md }}
+          nestedScrollEnabled={true}
         >
           {artists.map((song, i) => (
             <TouchableOpacity
-              key={`ar-${i}`}
+              key={`ar-${song.id}-${i}`}
               style={styles.artistCard}
               onPress={() => handlePlay([song], 0)}
               activeOpacity={0.8}
@@ -163,13 +174,15 @@ export function SuggestedTab({ navigation, onTabChange }: Props) {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingLeft: Spacing.md }}
+          nestedScrollEnabled={true}
         >
           {mostPlayed.map((song, i) => (
             <SongCard
-              key={`mp-${i}`}
+              key={`mp-${song.id}-${i}`}
               song={song}
               songs={mostPlayed}
               index={i}
+              onPlay={handlePlay}
             />
           ))}
         </ScrollView>
